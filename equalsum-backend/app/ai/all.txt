@@ -1,0 +1,2287 @@
+#fewshottest.py
+
+from langchain.prompts import FewShotPromptTemplate
+from ai.krEVprompt import (
+    krEV_task_description,
+    krEV_example_prompt,
+    krEV_suffix,
+    krEV_connectivity_description,
+    krEV_measurability_description,
+    krEV_directivity_description,
+    krEV_connectivity_examples,
+)
+
+krEV_fewshot_prompt = FewShotPromptTemplate(
+    prefix=" ",
+    examples=krEV_connectivity_examples,
+    example_prompt=krEV_example_prompt,
+    suffix=" ",
+)
+
+final_prompt = krEV_fewshot_prompt.format()
+
+print(final_prompt)
+
+# ------------------------------------------------------------------
+#formattest.py
+
+formattest = """
+{{
+  ""hello"":
+}}
+{arg1}
+hello
+{arg2}
+}}
+"""
+
+test1 = formattest.format(arg1="hi", arg2="bye")
+
+print(test1)
+
+# ------------------------------------------------------------------
+#ignoreWarnig.py
+
+import warnings
+
+# 경고를 무시한 후
+warnings.filterwarnings("ignore")
+
+# 경고를 다시 활성화
+# warnings.simplefilter("default")
+
+# ------------------------------------------------------------------
+#kr.py
+
+import warnings
+
+warnings.filterwarnings("ignore")
+
+
+from ai.krEVprompt import (
+    krEV_task_description,
+    krEV_example_prompt,
+    krEV_suffix,
+    krEV_connectivity_description,
+    krEV_measurability_description,
+    krEV_directivity_description,
+    krEV_connectivity_examples,
+)
+
+from ai.krRVprompt import (
+    krRV_task_description,
+    krRV_example_prompt,
+    krRV_suffix,
+    krRV_examples,
+)
+
+from langchain.prompts import FewShotPromptTemplate
+from langchain.chains import ConversationChain
+from langchain.memory import ConversationBufferMemory
+
+from ai.llm_select import llm
+from ai.parse import EV_parse_data, RV_parse_data
+from ai.selfC import whowins
+
+
+# 기존 3개 함수를 하나로 합치고 type 파라미터로 구분하는 함수입니다.
+def krEV(
+    input_sentence, upper_objective, guideline, example, isguide, isexample, krtype
+):
+    keyResult_memory = ConversationBufferMemory()
+
+    # 메모리의 system_message에 Task Description 추가
+    keyResult_memory.save_context(
+        inputs={"human": krEV_task_description},
+        outputs={"AI": "저의 역할을 이해했습니다."},
+    )
+
+    # guideline
+    if isguide:
+        prefix_guideline = "- 주어진 가이드라인을 평가에 이용하세요"
+        guideline = guideline
+    else:
+        prefix_guideline = " "
+        guideline = " "
+        for example in example:
+            example["guideline"] = " "
+
+    # example
+    if isexample:
+        prefix_example = "- 예시는 참고용일 뿐입니다. 현재 주어진 input_sentence와 upper_objective에 집중하여 평가하세요."
+    else:
+        prefix_example = " "
+
+    # type에 따라 prefix(description)가 달라짐
+    if krtype == 0:  # con
+        prefix = krEV_connectivity_description.format(
+            prefix_guideline=prefix_guideline, prefix_example=prefix_example
+        )
+    elif krtype == 1:  # mea
+        prefix = krEV_measurability_description.format(
+            prefix_guideline=prefix_guideline, prefix_example=prefix_example
+        )
+    elif krtype == 2:  # dir
+        prefix = krEV_directivity_description.format(
+            prefix_guideline=prefix_guideline, prefix_example=prefix_example
+        )
+    else:  # error
+        print("type parameter를 다시 확인하십시오. 0,1,2 중 하나여야 합니다.")
+
+    # suffix(평가 문장 등 정보 담음)
+    suffix = krEV_suffix.format(
+        input_sentence=input_sentence,
+        upper_objective=upper_objective,
+        guideline=guideline,
+    )
+
+    if isexample:
+        krEV_fewshot_prompt = FewShotPromptTemplate(
+            prefix=prefix + "\n\n",
+            examples=example,
+            example_prompt=krEV_example_prompt,
+            suffix=suffix,
+        )
+        final_prompt = krEV_fewshot_prompt.format(
+            input_sentence=input_sentence, upper_objective=upper_objective
+        )
+    else:
+        final_prompt = prefix + suffix
+
+    # print(type(final_prompt))
+    # print("*" * 50, "\n", final_prompt, "\n", "*" * 50)
+
+    krEV_chain = ConversationChain(
+        llm=llm,
+        memory=keyResult_memory,
+    )
+
+    krEV_res = krEV_chain.run(final_prompt)
+    # print(krEV_res)
+
+    krEV_res = EV_parse_data(krEV_res)
+    return krEV_res
+
+
+def krEV_selfC(
+    input_sentence, upper_objective, guideline, example, isguide, isexample, krtype
+):
+    res1 = krEV(
+        input_sentence, upper_objective, guideline, example, isguide, isexample, krtype
+    )
+    print(res1)
+    description1 = res1["description"]
+    score1 = res1["score"]
+    print("res1", description1, score1)
+
+    res2 = krEV(
+        input_sentence, upper_objective, guideline, example, isguide, isexample, krtype
+    )
+    description2 = res2["description"]
+    score2 = res2["score"]
+    print("res2", description2, score2)
+
+    res3 = krEV(
+        input_sentence, upper_objective, guideline, example, isguide, isexample, krtype
+    )
+    description3 = res3["description"]
+    score3 = res3["score"]
+    print("res3", description3, score3)
+
+    return whowins(description1, description2, description3, score1, score2, score3)
+
+
+# res = krEV_selfC(
+#     "밥을 먹는다",
+#     "건강해진다",
+#     "출력 양식을 잘 지키십시오",
+#     krEV_connectivity_examples,
+#     True,
+#     True,
+#     0,
+# )
+
+# print(res)
+
+# res1 = krEV(
+#     "밥을 먹는다",
+#     "건강해진다",
+#     "출력 양식을 잘 지키십시오",
+#     krEV_connectivity_examples,
+#     True,
+#     True,
+#     0,
+# )
+
+# print(res1)
+
+# res2 = krEV(
+#     "밥을 먹는다",
+#     "건강해진다",
+#     "출력 양식을 잘 지키십시오",
+#     krEV_connectivity_examples,
+#     True,
+#     True,
+#     0,
+# )
+
+# print(res2)
+
+# res3 = krEV(
+#     "밥을 먹는다",
+#     "건강해진다",
+#     "출력 양식을 잘 지키십시오",
+#     krEV_connectivity_examples,
+#     True,
+#     True,
+#     0,
+# )
+
+# res = whowins(
+#     res1["score"],
+#     res2["score"],
+#     res3["score"],
+#     res1["description"],
+#     res2["description"],
+#     res3["description"],
+# )
+# print(res)
+
+
+def krRV(
+    input_sentence,
+    upper_objective,
+    guideline,
+    example,
+    EV_description,
+    isguide,
+    isexample,
+):
+
+    # guideline
+    if isguide:
+        prefix_guideline = "- 주어진 가이드라인을 평가에 이용하세요"
+        guideline = guideline
+    else:
+        prefix_guideline = " "
+        guideline = " "
+        for example in example:
+            example["guideline"] = " "
+
+    # example
+    if isexample:
+        prefix_example = "- 예시는 참고용일 뿐입니다. 현재 주어진 input_sentence와 upper_objective에 집중하여 평가하세요."
+    else:
+        prefix_example = " "
+
+    prefix = krRV_task_description.format(
+        prefix_guideline=prefix_guideline, prefix_example=prefix_example
+    )
+
+    # suffix(평가 문장 등 정보 담음)
+    suffix = krRV_suffix.format(
+        guideline=guideline,
+        input_sentence=input_sentence,
+        upper_objective=upper_objective,
+        EV_description=EV_description,
+    )
+
+    if isexample:
+        krRV_fewshot_prompt = FewShotPromptTemplate(
+            prefix=prefix + "\n\n",
+            examples=example,
+            example_prompt=krRV_example_prompt,
+            suffix=suffix,
+        )
+        final_prompt = krRV_fewshot_prompt.format(
+            input_sentence=input_sentence, upper_objective=upper_objective
+        )
+    else:
+        final_prompt = prefix + suffix
+
+    # print(type(final_prompt))
+    # print("*" * 50, "\n", final_prompt, "\n", "*" * 50)
+
+    krRV_chain = ConversationChain(llm=llm)
+
+    krRV_res = krRV_chain.run(final_prompt)
+    # print(krRV_res)
+
+    krRV_res = RV_parse_data(krRV_res)
+    return krRV_res
+
+
+# erstr = """
+#     "description" : "밥을 잘 먹는다"
+#     "score" :
+
+# """
+# err2 = "descritpino"
+# tres = EV_parse_data(erstr)
+# print(tres)
+
+# res2 = krEV(
+#     "LVUP를 켜고 게임을 한다.",
+#     "LVUP 오거나이저 기능 활용의 다변화 시도",
+#     "오거나이저 기능을 활용해보는 상황이 나온다",
+#     krEV_connectivity_examples,
+#     True,
+#     True,
+#     0,
+# )
+
+# print(res2)
+
+# ------------------------------------------------------------------
+#kreEV_memory.py
+
+from ai.krEVprompt import (
+    krEV_task_description,
+    krEV_example_prompt,
+    krEV_suffix,
+    kr_background_template,
+    krEV_connectivity_description,
+    krEV_measurability_description,
+    krEV_directivity_description,
+    krEV_connectivity_examples,
+)
+
+from langchain.prompts import FewShotPromptTemplate
+from langchain.chains import ConversationChain
+from langchain.memory import ConversationBufferMemory
+
+from parse import parse_data
+from main import llm
+
+
+# 기존 3개 함수를 하나로 합치고 type 파라미터로 구분하는 함수입니다.
+def krEV(input_sentence, upper_objective, guideline, example, isguide, isexample, type):
+    memory = ConversationBufferMemory()
+
+    # 메모리의 system_message에 Task Description 추가
+    print(krEV_task_description)
+    memory.save_context(
+        inputs={"human": krEV_task_description},
+        outputs={"AI": "저의 역할을 이해했습니다."},
+    )
+
+    # guideline
+    if isguide:
+        prefix_guideline = "- 주어진 가이드라인을 평가에 이용하세요"
+        guideline = guideline
+    else:
+        prefix_guideline = " "
+        guideline = " "
+        for example in example:
+            example["guideline"] = " "
+
+    # example
+    if isexample:
+        prefix_example = "- 예시는 참고용일 뿐입니다. 현재 주어진 input_sentence와 upper_objective에 집중하여 평가하세요."
+    else:
+        prefix_example = " "
+
+    # type에 따라 prefix(description)가 달라짐
+    if type == 0:  # con
+        prefix = krEV_connectivity_description.format(
+            prefix_guideline=prefix_guideline, prefix_example=prefix_example
+        )
+    elif type == 1:  # mea
+        prefix = krEV_measurability_description.format(
+            prefix_guideline=prefix_guideline, prefix_example=prefix_example
+        )
+    elif type == 2:  # dir
+        prefix = krEV_directivity_description.format(
+            prefix_guideline=prefix_guideline, prefix_example=prefix_example
+        )
+    else:  # error
+        print("type parameter를 다시 확인하십시오. 0,1,2 중 하나여야 합니다.")
+
+    print(prefix)
+    memory.save_context(
+        inputs={"human": prefix},
+        outputs={"AI": "평가 기준, 출력 형식, 주의사항을 이해했습니다."},
+    )
+
+    if isexample:
+        krEV_fewshot_prompt = FewShotPromptTemplate(
+            prefix=" ",
+            examples=example,
+            example_prompt=krEV_example_prompt,
+            suffix=" ",
+        )
+        example_prompt = krEV_fewshot_prompt.format()
+
+        print(example_prompt)
+        memory.save_context(
+            inputs={"human": example_prompt},
+            outputs={"AI": "예시를 잘 보았습니다. 이를 활용해 평가하겠습니다."},
+        )
+
+    # # 기업 background 정보 전달
+    # keyResult_background = kr_background_template.format(
+    #     company="회사명",  # 회사명
+    #     field="업종",  # 업종
+    #     team="팀명",  # 팀명
+    # )
+
+    # print(keyResult_background)
+    # memory.save_context(
+    #     inputs={"system": keyResult_background},
+    #     outputs={"AI": "평가할 기업의 배경 정보를 학습했습니다."},
+    # )
+
+    # suffix (모델의 최종 입력으로 사용)
+    suffix = krEV_suffix.format(
+        guideline=guideline,
+        input_sentence=input_sentence,
+        upper_objective=upper_objective,
+    )
+    print(suffix)
+
+    krEV_chain = ConversationChain(
+        llm=llm,
+        memory=memory,
+    )
+
+    krEV_res = krEV_chain.run(suffix)
+
+    krEV_res = parse_data(krEV_res)
+    return krEV_res
+
+
+res = krEV(
+    "밥을 먹는다",
+    "건강해진다",
+    "출력 양식을 잘 지키십시오",
+    krEV_connectivity_examples,
+    True,
+    True,
+    0,
+)
+
+print(res)
+
+# ------------------------------------------------------------------
+#krEVprompt.py
+
+from langchain.prompts import PromptTemplate
+
+krEV_task_description = """
+당신은 세계적으로 인정받는 OKR(Objectives and Key Results) 전문 컨설턴트입니다. 당신의 임무는 주어진 Key Result를 철저히 분석하고 평가하여, 조직의 목표 달성을 위한 최적의 OKR 수립을 지원하는 것입니다. 
+"""
+
+kr_background_template = """
+company: {company}
+field: {field}
+team: {team}
+"""
+# 예시 형식 지정, input_variables에 해당하는 변수만 바뀔거고 { } 자리에 들어간다는 의미.
+krEV_example_prompt = PromptTemplate(
+    input_variables=[
+        "guideline",
+        "input_sentence",
+        "upper_objective",
+        "description",
+        "score",
+    ],
+    template="""
+  <예시 입력>
+  "guideline": {guideline}
+  "input_sentence": {input_sentence}
+  "upper_objective": {upper_objective}
+  
+  <예시 출력>
+
+  "description": "{description}",
+  "score": {score}
+
+  """,
+)
+
+krEV_suffix = """
+<실제 입력>
+"guideline": {guideline}
+"input_sentence": {input_sentence}
+"upper_objective": {upper_objective}
+
+<실제 출력>
+
+"description":
+"score":
+
+
+출력 형식은 key가 description와 score 2개인 json형식입니다. json이라는 문구나 백틱 같은 특수문자는 사용하지 마십시오.
+"""
+# krEV 프롬프트들
+
+# 평가요소의 의미 설명
+krEV_connectivity_description = """
+당신은 OKR(Objectives and Key Results) 평가 전문가입니다. 주어진 Key Result(input_sentence)가 Objective(upper_objective)와 얼마나 연관성이 있는지 평가해야 합니다. 다음 평가 기준에 따라 단계적으로 사고하세요:
+
+1. 점수별 기준 검토
+  1점 기준 =
+  - Key Result가 Objective 구현과 연결성이 거의 없으며 간접적인 영향이 미미한가요?
+  2점 기준 =
+  - Key Result가 Objective 구현과 직접적 연결성은 낮지만, 간접적으로 영향을 줄 수 있나요?
+  3점 기준 =
+  - Key Result가 Objective 구현과 관련성은 있지만, 핵심적이거나 필수적인 요소는 아닌가요?
+  4점 기준 =
+  - Key Result가 Objective 구현에 중요하지만, 필수적인 핵심 요소까지는 아닌가요?
+  5점 기준 =
+  - Key Result가 Objective 구현에 필수적이고 핵심적인 요소인가요? 또는 Objective가 구현된 구체적인 결과/모습을 나타내나요?
+
+2. 산업 및 조직 특성 고려
+  - 주어진 회사, 업종, 팀 정보를 고려할 때, 이 Key Result의 상위 objective와의 연관성은 어떻게 평가되나요?
+
+3. 종합 평가
+  위의 분석을 바탕으로, 1-5점 척도에서 어떤 점수가 가장 적절한가요? 그 이유는 무엇인가요?
+
+위의 단계별 사고 과정을 거친 후, 종합적으로 판단하여 다음 두 가지 결과를 아래처럼 json형식으로 제시하세요:
+
+  "description": "평가 기준에 따른 구체적인 평가 (위의 사고 과정을 반영하여 작성)",
+  "score": 최종 평가 점수 (1-5점 정수)
+
+주의사항
+- 평가는 객관적이고 전문적이어야 하며, 주어진 회사, 업종, 팀 정보를 고려하여 맥락에 맞는 평가를 제공하세요.
+- 확신에 찬 톤으로 답변하되, 합리적|이고 구체적인 근거를 제시하세요.
+- 산업과 조직의 특성을 고려하여 평가에 반영하세요.
+
+{prefix_guideline}
+{prefix_example}
+
+이제 주어진 input_sentence에 대해 위의 단계를 따라 사고하고, 요청된 형식으로 결과를 제시하세요.
+"""
+
+# fewshot
+krEV_connectivity_examples = [
+    {
+        "guideline": "레시피 개발이 고객의 요리에 대한 접근성을 높이는 데 어떻게 기여하는지 설명해주세요. 예를 들어, 어떤 레시피를 개발했고, 어떤 부분에서 고객의 요리 접근성을 향상시켰는지 구체적으로 설명해주세요. 콘텐츠가 고객의 요리에 대한 흥미와 참여를 유발하는 데 어떤 영향을 미치는지 설명해주세요. 예를 들어, 어떤 콘텐츠를 제작했고, 그 콘텐츠가 어떻게 고객의 요리에 대한 흥미와 참여를 이끌어냈는지 구체적으로 설명해주세요. 고객이 하루에 한 끼는 요리를 하고 싶도록 만드는 목표 달성에 어떻게 기여하는지 설명해주세요. 예를 들어, 어떤 방식으로 고객에게 요리의 즐거움을 전달하고, 요리에 대한 동기를 부여하는지 구체적으로 설명해주세요.",
+        "input_sentence": "일상 요리들의 조리 과정을 50% 줄일 수 있는 제품+요리법을 연구, 개발한다.",
+        "upper_objective": "고객이 하루에 한 끼는 요리를 하고 싶게 한다.",
+        "description": "조리를 쉽고 빠르게 할 수 있는 것은 고객이 하루에 한끼 정도는 요리를 할 수 있게 만드는 요소입니다.",
+        "score": "5",
+    }
+]
+
+# 평가요소의 의미 설명
+krEV_measurability_description = """
+당신은 OKR(Objectives and Key Results) 평가 전문가입니다. 주어진 Key Result(input_sentence)가 얼마나 정량적으로 측정 가능한지 평가해야 합니다. 다음 평가 기준에 따라 단계적으로 사고하세요:
+
+1. 점수별 기준 검토
+  1점 기준 =
+  - Key Result가 측정과 완전히 무관한 내용인가요?
+  2점 기준 =
+  - Key Result에 측정할 대상은 있지만, 양적으로나 질적으로 달라지는 정도가 없어서 측정이 안 되나요?
+  3점 기준 =
+  - Key Result를 측정할 대상과 방법이 존재하지만, 그 방법이 간접적이거나 추정에 의존해야 하나요?
+  4점 기준 =
+  - Key Result의 측정 대상이 달라지는 정도를 정성적인 설명을 통해 측정할 수 있나요?
+  5점 기준 =
+  - Key Result의 측정 대상이 양적으로 명확하게 달라지는 정도가 나타나나요?
+
+2. 산업 및 조직 특성 고려
+  - 주어진 회사, 업종, 팀 정보를 고려할 때, 이 Key Result의 측정 가능성은 어떻게 평가되나요?
+
+3. 종합 평가
+  위의 분석을 바탕으로, 1-5점 척도에서 어떤 점수가 가장 적절한가요? 그 이유는 무엇인가요?
+
+위의 단계별 사고 과정을 거친 후, 종합적으로 판단하여 다음 두 가지 결과를 아래처럼 json형식으로 제시하세요:
+
+  "description": "평가 기준에 따른 구체적인 평가 (위의 사고 과정을 반영하여 작성)",
+  "score": 최종 평가 점수 (1-5점 정수)
+
+
+주의사항
+- 평가는 객관적이고 전문적이어야 하며, 주어진 회사, 업종, 팀 정보를 고려하여 맥락에 맞는 평가를 제공하세요.
+- 확신에 찬 톤으로 답변하되, 합리적이고 구체적인 근거를 제시하세요.
+- 산업과 조직의 특성을 고려하여 평가에 반영하세요.
+
+{prefix_guideline}
+{prefix_example}
+
+이제 주어진 input_sentence에 대해 위의 단계를 따라 사고하고, 요청된 형식으로 결과를 제시하세요.
+"""
+
+# fewshot
+krEV_measurability_examples = [
+    {
+        "guideline": "고객의 요리 접근성을 어떻게 측정할 수 있을까요? 예를 들어, 레시피 조회수, 레시피 활용 후기 작성 수, 요리 관련 질문 감소율 등을 통해 측정할 수 있습니다. 고객의 요리에 대한 흥미와 참여를 어떻게 측정할 수 있을까요? 예를 들어, 콘텐츠 조회수, 좋아요 수, 댓글 수, 공유 수, 요리 관련 커뮤니티 활동 참여율 등을 통해 측정할 수 있습니다. 고객이 하루에 한 끼는 요리를 하고 싶게 만드는 성공률을 어떻게 측정할 수 있을까요? 예를 들어, 고객 설문조사를 통해 요리 빈도를 조사하거나, 요리 관련 상품 구매 데이터를 분석하여 측정할 수 있습니다. 레시피 개발이라는 활동 자체가 아닌, 그 결과로 나타나는 고객의 요리 접근성 향상에 초점을 맞춰야 합니다. 예를 들어, 레시피 개발을 통해 고객이 요리에 대한 자신감이 향상되었는지, 요리 시간이 단축되었는지, 새로운 요리에 도전하는 비율이 높아졌는지 등을 측정할 수 있습니다. 콘텐츠 제작이라는 활동 자체가 아닌, 그 결과로 나타나는 고객의 요리에 대한 흥미와 참여 증가에 초점을 맞춰야 합니다. 예를 들어, 콘텐츠를 통해 고객이 요리 관련 정보를 얼마나 얻었는지, 새로운 요리 레시피를 얼마나 시도해보았는지, 요리에 대한 만족도가 높아졌는지 등을 측정할 수 있습니다. 고객이 요리에 대한 긍정적인 인식을 갖게 되고, 실제로 요리를 더 자주 하도록 유도하는 결과를 도출하는 데 초점을 맞춰야 합니다. 예를 들어, 고객의 요리 만족도가 높아졌는지, 요리 관련 활동에 대한 참여율이 증가했는지, 요리에 대한 스트레스가 감소했는지 등을 측정할 수 있습니다.",
+        "input_sentence": "일상 요리들의 조리 과정을 50% 줄일 수 있는 제품+요리법을 연구, 개발한다.",
+        "upper_objective": "고객이 하루에 한 끼는 요리를 하고 싶게 한다.",
+        "description": "현재대비 50% 정도로 요리 과정이 간소화되어야 하는데, 현재가 어느정도인지 나타나지 않아서 50%로 줄어드는 것을 측정하기 어렵다",
+        "score": "3",
+    }
+]
+
+
+# 평가요소의 의미 설명
+krEV_directivity_description = """
+당신은 OKR(Objectives and Key Results) 평가 전문가입니다. 주어진 Key Result(input_sentence)가 얼마나 결과 지향적인지 평가해야 합니다. 다음 평가 기준에 따라 단계적으로 사고하세요:
+
+1. 점수별 기준 검토
+  1점 기준 =
+  - Key Result가 결과가 아닌 방향이나 행동, 할 일로 표현되어 있나요?
+  2점 기준 =
+  - Key Result가 결과를 암시하는 부분이 있지만, 여전히 방향성이나 과정에 더 중점을 두고 있나요?
+  3점 기준 =
+  - Key Result에 결과를 구성하는 '무엇'은 있지만 '얼마나'가 없나요? 또는 행동으로나 결과로 모두 설명이 가능하지만 모호함이 존재하나요?
+  4점 기준 =
+  - Key Result가 결과 중심적으로 표현되어 있지만, 완벽한 명확성이나 구체성에 약간 부족함이 있나요?
+  5점 기준 =
+  - Key Result가 방향, 행동이 아닌 결과로 명확하게 표현되어 있나요?
+
+2. 산업 및 조직 특성 고려
+  - 주어진 회사, 업종, 팀 정보를 고려할 때, 이 Key Result의 결과 지향성은 어떻게 평가되나요?
+
+3. 종합 평가
+  위의 분석을 바탕으로, 1-5점 척도에서 어떤 점수가 가장 적절한가요? 그 이유는 무엇인가요?
+
+위의 단계별 사고 과정을 거친 후, 종합적으로 판단하여 다음 두 가지 결과를 아래처럼 json형식으로 제시하세요:
+
+  "description": "평가 기준에 따른 구체적인 평가 (위의 사고 과정을 반영하여 작성)",
+  "score": 최종 평가 점수 (1-5점 정수)
+
+주의사항
+- 평가는 객관적이고 전문적이어야 하며, 주어진 회사, 업종, 팀 정보를 고려하여 맥락에 맞는 평가를 제공하세요.
+- 확신에 찬 톤으로 답변하되, 합리적이고 구체적인 근거를 제시하세요.
+- 산업과 조직의 특성을 고려하여 평가에 반영하세요.
+
+{prefix_guideline}
+{prefix_example}
+
+이제 주어진 input_sentence에 대해 위의 단계를 따라 사고하고, 요청된 형식으로 결과를 제시하세요.
+"""
+
+# fewshot
+krEV_directivity_examples = [
+    {
+        "guideline": "레시피 개발이라는 활동 자체가 아닌, 그 결과로 나타나는 고객의 요리 접근성 향상에 초점을 맞춰야 합니다. 예를 들어, 레시피 개발을 통해 고객이 요리에 대한 자신감이 향상되었는지, 요리 시간이 단축되었는지, 새로운 요리에 도전하는 비율이 높아졌는지 등을 측정할 수 있습니다. 콘텐츠 제작이라는 활동 자체가 아닌, 그 결과로 나타나는 고객의 요리에 대한 흥미와 참여 증가에 초점을 맞춰야 합니다. 예를 들어, 콘텐츠를 통해 고객이 요리 관련 정보를 얼마나 얻었는지, 새로운 요리 레시피를 얼마나 시도해보았는지, 요리에 대한 만족도가 높아졌는지 등을 측정할 수 있습니다. 고객이 요리에 대한 긍정적인 인식을 갖게 되고, 실제로 요리를 더 자주 하도록 유도하는 결과를 도출하는 데 초점을 맞춰야 합니다. 예를 들어, 고객의 요리 만족도가 높아졌는지, 요리 관련 활동에 대한 참여율이 증가했는지, 요리에 대한 스트레스가 감소했는지 등을 측정할 수 있습니다.",
+        "input_sentence": "일상 요리들의 조리 과정을 50% 줄일 수 있는 제품+요리법을 연구, 개발한다.",
+        "upper_objective": "고객이 하루에 한 끼는 요리를 하고 싶게 한다.",
+        "description": "조리과정 50% 감소라는 것은 결과이나, 조리과정이 현재 어느정도에서 얼마나 달라지는지로 표현되어야 더 좋은 결과다",
+        "score": "4",
+    }
+]
+
+krEV_connectivity_examples_1 = [
+    {
+        "guideline": "해당 마케팅 채널 활용 전략이 신규 고객 유치 목표 달성에 어떻게 기여하는가? (예: 특정 채널을 통해 신규 고객 유치율을 높이는 전략) 해당 고객 경험 제공 전략이 신규 고객 유치 및 매출 300% 달성 목표와 어떻게 연결되는가? (예: 고객 경험 향상을 통한 고객 충성도 증가, 재구매율 증가 등) 해당 프로모션 전략이 신규 고객 유치 목표와 어떻게 연결되는가? (예: 프로모션을 통해 신규 고객 유치율을 높이는 전략)",
+        "input_sentence": "APP 다운로드 5만 달성 (500% 성장)",
+        "upper_objective": "신규 고객 유치 (매출 300% 달성 목표)",
+        "description": "신규 고객 확대를 통해, 매장 이용 소비자까지 app다운로드와가 늘어남",
+        "score": "4.5",
+    },
+    {
+        "guideline": "서비스 품질 및 사용성 만족도를 향상시키는 것은 서비스 품질 및 사용성 제고라는 목표 달성에 직접적으로 기여합니다. 사용자 만족도 향상은 서비스 품질 및 사용성 개선의 핵심 지표가 됩니다. 사용자 만족도를 측정하는 것은 목표 달성 여부를 파악하는데 도움이 됩니다. 서비스 이용 관련 지표 개선은 서비스 품질 및 사용성 제고 목표 달성에 직접적으로 기여합니다. 서비스 이용률 증가는 서비스 활용도를 높이는 결과를 가져오며, 이는 곧 서비스 품질 및 사용성이 개선되었음을 의미합니다. 서비스 안정성 및 신뢰성 강화는 서비스 품질 및 사용성 제고 목표 달성에 직접적으로 기여합니다. 서비스 안정성이 향상되면 사용자 경험이 개선되고, 서비스에 대한 신뢰도가 높아지게 됩니다.",
+        "input_sentence": "내부 시스템 및 인프라 재정비(DB 안정화, APP 경량화, 서비스 확장성을 위한 Back Office 정비)",
+        "upper_objective": "서비스 품질 및 사용성 제고(서비스 편의성, 직관성, 안정성 개선)",
+        "description": "DB 안정화, APP 경량화, 백오피스 구축하면, 어떤 품질/사용성과 연관 되는지 불명확",
+        "score": "3",
+    },
+]
+
+krEV_connectivity_examples_2 = [
+    {
+        "guideline": "해당 질문은 'PC방 Lvup.gg 샘플 데이터 확보'라는 목표와 직접적인 연결성을 가지고 있으며, 데이터 확보라는 목표 달성에 필수적인 요소를 묻고 있습니다. (예: 목표 달성을 위한 데이터 확보 목표 수량) 다양한 유형의 데이터 확보는 사용자에게 다양한 정보를 제공하여 플랫폼 활용도를 높이는 데 기여합니다. (예: 사용자들이 필요로 하는 다양한 샘플 데이터 유형을 확보하는 것이 목표 달성에 중요한 요소) 신뢰도 높은 데이터는 플랫폼의 정확성과 신뢰성을 높이는 데 중요한 역할을 합니다. (예: 신뢰도 높은 데이터 확보는 플랫폼의 경쟁력을 강화하고 목표 달성에 중요한 영향을 미칩니다.)",
+        "input_sentence": "PC방 대회 통해 Lvup.gg 접속률, 가입률 데이터 확보 (*1개 PC방에서 얼만큼의 접속률/가입률을 기대 할 수 있을지 세컨드찬스 의견 필요)",
+        "upper_objective": "PC방 Lvup.gg 샘플 데이터 확보",
+        "description": "상위목표와 같은 이야기입니다. 연결은 잘되었다고 볼 수 있으나, 세부목표로서의 초점이 명확하지 않습니다",
+        "score": "3",
+    }
+]
+
+krEV_connectivity_examples_3 = [
+    {
+        "guideline": "어떤 핵심 기술 및 서비스 개발이 에듀테크 사업 진출과 시장 경쟁력 확보에 가장 중요한 역할을 할 수 있을까요? (예: 인공지능 기반 맞춤형 학습 시스템, VR/AR 기반 교육 콘텐츠 개발, 온라인 학습 플랫폼 구축) 어떤 차별화된 교육 콘텐츠 및 서비스 제공이 고객 만족도 향상과 시장 점유율 확보에 가장 큰 영향을 미칠 수 있을까요? (예: 개인 맞춤형 학습 콘텐츠 제공, 몰입형 학습 경험 제공, 편리한 학습 환경 구축) 에듀테크 사업 성공을 위해 어떤 분야의 전문 인력 확보가 가장 중요하다고 생각되나요? (예: 교육 콘텐츠 개발, 플랫폼 개발, 데이터 분석, 마케팅)",
+        "input_sentence": "에듀테크 기업과 파트너십을 1건 이상 구축한다.",
+        "upper_objective": "에듀테크 기업으로 변모한다.",
+        "description": "외부 에듀테크 기업과 파트너십 1건 구축 *자체적인 역량 구축없이 외부 기업과의 파트너십은 좋은 전략이 아님",
+        "score": "3",
+    }
+]
+
+krEV_measurability_examples_1 = [
+    {
+        "guideline": "참여자 고충 유형별 발생 건수 및 해결 비율을 어떻게 정량적으로 측정할 수 있을까요? (예: 고객센터 문의, 설문조사, 커뮤니티 게시글 등을 통해 고충 유형별 발생 건수를 파악하고, 해결된 건수를 기준으로 해결 비율을 계산할 수 있습니다.) 참여자 고충 해결 프로세스 개선 효과를 어떻게 정량적으로 측정할 수 있을까요? (예: 고충 접수부터 해결까지 걸리는 시간, 해결률, 고객 만족도 조사 결과 등을 통해 측정할 수 있습니다.) 참여자 고충 해결 시스템 및 도구 구축 효과를 어떻게 정량적으로 측정할 수 있을까요? (예: 시스템 및 도구 이용률, 고충 접수 및 해결 건수, 사용자 만족도 조사 결과 등을 통해 측정할 수 있습니다.)",
+        "input_sentence": "대기일수 줄이기",
+        "upper_objective": "참여자의 고충을 도출하고 해결한다.",
+        "description": "대기일수(대상)를 얼마나 줄일 것인지가 있어야 측정할 수 있음",
+        "score": "2",
+    }
+]
+
+krEV_measurability_examples_2 = [
+    {
+        "guideline": "어린이 시청자 도달 범위를 측정할 수 있는 지표는 무엇이며, 어떻게 측정할 수 있을까요? (예: 동영상 조회수, 구독자 수, 시청 시간, 콘텐츠 공유 수 등을 통해 측정할 수 있습니다.) 어린이 시청자들에게 미친 긍정적인 영향을 어떻게 측정할 수 있을까요? (예: 시청 후 학습 관련 설문 조사, 학습 성취도 평가, 시청 후 콘텐츠 만족도 조사 등을 통해 측정할 수 있습니다.) 어린이 독자층의 참여를 어떻게 측정할 수 있을까요? (예: 동영상 댓글, 좋아요, 공유 수, 시청자와의 소통 활동, 콘텐츠 관련 이벤트 참여율 등을 통해 측정할 수 있습니다.)!",
+        "input_sentence": "유튜브 서비스 1개월 후 구독자 수 10,000명을 달성한다",
+        "upper_objective": "동영상 콘텐츠 출시로 어린이 독자를 기쁘게 한다",
+        "description": "측정 대상(구독자수)과 측정 기준(명수)/수준(10,000명)이 명확하여 측정기능함",
+        "score": "5",
+    },
+    {
+        "guideline": "제품의 영양소 함량을 어떻게 측정하고, '한 끼에 필요한 영양소 기준'은 어떻게 정의하는가? (예: 한국인 영양섭취기준) 소비자 인식은 어떻게 측정 가능한가? (예: 설문조사, 제품 리뷰 분석, 소셜 미디어 분석) 다양한 영양 요구 사항을 어떻게 정의하고, 제품의 적합성은 어떻게 측정하는가? (예: 제품 라인업 구성, 타겟 소비자 그룹 분석)",
+        "input_sentence": "저칼로리 건강죽을 개발하여 간편하고 포만감 있게 먹으면서도 다이어트가 될 수 있는 대용식을 제공한다.",
+        "upper_objective": "한끼에 필요한 영양소를 제공한다",
+        "description": "저칼로리 건강죽이라는 측정의 대상은 있으나, 어떤 함량, 어느정도의 칼로리, 다이어트 효과, 대용식제품의 개발 기한 등 측정할 기준이 없다",
+        "score": "2",
+    },
+]
+
+krEV_measurability_examples_3 = [
+    {
+        "guideline": "고객 만족도는 설문조사, NPS 점수, 고객 리뷰 등을 통해 측정할 수 있습니다. 측정 대상은 토스 송금 서비스 이용 고객이며, 측정 기준은 '매우 만족', '만족', '보통', '불만족', '매우 불만족' 등의 5점 척도를 사용합니다. 예시: '2023년 말 토스 송금 서비스 이용 고객 NPS 점수가 70점 이상 달성한다. 월간 활성 사용자 수는 토스 앱 내 송금 기능 이용 기록을 기반으로 측정할 수 있습니다. 측정 대상은 토스 송금 서비스를 이용하여 송금을 한 사용자이며, 측정 기준은 월별 사용자 수를 기준으로 합니다. 예시: '2023년 말 토스 송금 서비스의 월간 활성 사용자 수가 500만 명 이상 달성한다. 평균 송금 시간은 토스 송금 서비스 이용 기록을 기반으로 측정할 수 있습니다. 측정 대상은 토스 송금 서비스 이용 고객이며, 측정 기준은 송금 시작부터 완료까지 걸리는 시간을 기준으로 합니다. 예시: '2023년 말 토스 송금 서비스의 평균 송금 시간이 5초 이내 달성한다.",
+        "input_sentence": "계좌 개설과 송금을 위해 필수로 알려진 오프라인 은행 지점 방문을 필요없게 만든다",
+        "upper_objective": "현존 하는 어떤 인터넷 뱅킹보다 더 쉽고 간편한 송금할 수 있는 온라인 송금 프로덕트를 고객에게 선보이자",
+        "description": "오프라인 은행지점방문이 필요없어졌다는 것을 구현하게 되었는지 여부를 측정가능하다",
+        "score": "5",
+    },
+    {
+        "guideline": "신규 유저 유입률은 어떻게 측정할 수 있을까요? 예를 들어, 캠페인 전후 각 서비스의 신규 유저 수를 비교하여 증가율을 계산할 수 있습니다. 사용자 만족도는 어떻게 측정할 수 있을까요? 예를 들어, 서비스 이용 후 설문조사를 통해 만족도를 평가하거나, 서비스 이용 빈도 및 지속 시간 등을 분석하여 만족도를 추정할 수 있습니다. 매출 증진은 어떻게 측정할 수 있을까요? 예를 들어, 캠페인 전후 각 서비스의 매출 변화를 비교하여 증가율을 계산할 수 있습니다.",
+        "input_sentence": "쇼핑몰 매출 확대를 위한 마케팅 서비스 도입 (공비서스토어 쇼핑 DM, 재구매 유도 추천 상품).",
+        "upper_objective": "서비스 연계 마케팅 강화 (공비서, 공비서 스토어, 네일아트앱)",
+        "description": "도입 여부는 측정할 수 있으나, 서비스를 얼마나 잘 도입했는지의 수준을 측정할 수 없음",
+        "score": "2",
+    },
+]
+
+krEV_directivity_examples_1 = [
+    {
+        "guideline": "고객 만족도는 토스 송금 서비스의 결과를 나타냅니다. 고객 만족도가 높아진다는 것은 토스 송금 서비스가 고객의 요구를 충족하고 있다는 것을 의미합니다. 예시: '토스 송금 서비스 이용 후, '다시 이용하고 싶다'는 응답 비율이 90% 이상 달성한다. 월간 활성 사용자 수는 토스 송금 서비스의 결과를 나타냅니다. 월간 활성 사용자 수가 증가한다는 것은 토스 송금 서비스가 고객에게 인정받고 있다는 것을 의미합니다. 예시: '2023년 말 토스 송금 서비스를 이용한 사용자 중, 월 2회 이상 송금을 한 사용자 비율이 50% 이상 달성한다. 평균 송금 시간 단축은 토스 송금 서비스의 결과를 나타냅니다. 평균 송금 시간이 단축될수록 고객의 편의성이 증가하고 토스 송금 서비스의 경쟁력이 강화됩니다. 예시: '2023년 말 토스 송금 서비스 이용 고객 중, 송금 시간에 대한 만족도가 90% 이상 달성한다.",
+        "input_sentence": "공인인증서_OTP/보안카드 등이 없어도 송금할 수 있게 된다",
+        "upper_objective": "현존 하는 어떤 인터넷 뱅킹보다 더 쉽고 간편한 송금할 수 있는 온라인 송금 프로덕트를 고객에게 선보이자",
+        "description": "은행지점 방문이 필요없게 된 것은 확실한 변화이자 결과다. 단, 프로덕트 차원에서 해당변화를 구현할 기능이나 프로세스가 무엇이라는 것이 있으면 더 좋은 결과다",
+        "score": "4",
+    }
+]
+
+krEV_directivity_examples_2 = [
+    {
+        "guideline": "이 질문은 고객의 소비하지 않는 이유를 파악하는 결과를 도출하는 데 초점을 맞추며, 이는 활동이나 작업이 아닌 결과입니다. (예: 고객 불만 사항 분석 보고서, 경쟁사 제품 분석 결과 보고서 등) 이 질문은 상품 기획, 디자인, 마케팅 전략의 개선을 통한 결과를 중심으로 질문합니다. (예: 개선된 상품 출시 후 매출 변화, 마케팅 캠페인 결과 보고서 등) 이 질문은 고객 소비 유도 전략의 성공 가능성을 평가하는 결과 중심 질문입니다. (예: 마케팅 캠페인 효과 분석 보고서, 고객 만족도 조사 결과 등)",
+        "input_sentence": "브랜드 검색량 월 1,700건에서 3,500건으로 증대",
+        "upper_objective": "고객이 우리 옷을 소비하지 않는 부분에 대한 문제 해결",
+        "description": "결과를 구성하는 무엇이 얼마나 달라지는가가 잘 표현되어 있다",
+        "score": "5",
+    },
+    {
+        "guideline": "고객 만족도는 토스 송금 서비스의 결과를 나타냅니다. 고객 만족도가 높아진다는 것은 토스 송금 서비스가 고객의 요구를 충족하고 있다는 것을 의미합니다. 예시: '토스 송금 서비스 이용 후, '다시 이용하고 싶다'는 응답 비율이 90% 이상 달성한다. 월간 활성 사용자 수는 토스 송금 서비스의 결과를 나타냅니다. 월간 활성 사용자 수가 증가한다는 것은 토스 송금 서비스가 고객에게 인정받고 있다는 것을 의미합니다. 예시: '2023년 말 토스 송금 서비스를 이용한 사용자 중, 월 2회 이상 송금을 한 사용자 비율이 50% 이상 달성한다. 평균 송금 시간 단축은 토스 송금 서비스의 결과를 나타냅니다. 평균 송금 시간이 단축될수록 고객의 편의성이 증가하고 토스 송금 서비스의 경쟁력이 강화됩니다. 예시: '2023년 말 토스 송금 서비스 이용 고객 중, 송금 시간에 대한 만족도가 90% 이상 달성한다.",
+        "input_sentence": "계좌 개설과 송금을 위해 필수로 알려진 오프라인 은행 지점 방문을 필요없게 만든다",
+        "upper_objective": "현존 하는 어떤 인터넷 뱅킹보다 더 쉽고 간편한 송금할 수 있는 온라인 송금 프로덕트를 고객에게 선보이자",
+        "description": "은행지점 방문이 필요없게 된 것은 확실한 변화이자 결과입니다. 단, 프로덕트 차원에서 해당변화를 구현할 기능이나 프로세스가 무엇이고 언제까지 구현한다는 것이 있으면 더 좋은 결과입니다",
+        "score": "4",
+    },
+]
+
+krEV_directivity_examples_3 = [
+    {
+        "guideline": "핵심 기술 및 서비스 개발 및 구축을 통해 어떤 결과를 도출하고자 하는지 명확하게 나타낼 수 있을까요? (예: 새로운 에듀테크 서비스 출시, 기존 교육 사업 성장 촉진, 새로운 수익 창출 모델 확보) 차별화된 교육 콘텐츠 및 서비스 제공을 통해 어떤 결과를 도출하고자 하는지 명확하게 나타낼 수 있을까요? (예: 고객 충성도 향상, 브랜드 인지도 증진, 새로운 시장 진출 기회 확보) 전문 인력 확보 및 육성을 통해 어떤 결과를 도출하고자 하는지 명확하게 나타낼 수 있을까요? (예: 에듀테크 사업 경쟁력 강화, 혁신적인 교육 서비스 개발, 지속 가능한 성장 기반 확보)",
+        "input_sentence": "에듀테크 R&D 조직을 구성하고 에듀테크 성장 로드맵을 완성한다. (4월 말까지)",
+        "upper_objective": "에듀테크 기업으로 변모한다.",
+        "description": "조로드맵 완성은 목표를 수립하기 위한 계획서라는 차원에서는 결과라고 보기 어려우나, 에듀테크로 변하는 전략차원에서 첫 결과물로 의미를 가질 수 있습니다",
+        "score": "3",
+    }
+]
+
+# -----------------------------------------------------------------------------------------------------
+#krRV.py
+
+from ai.krRVprompt import krRV_example_prompt, krRV_examples, krRV_examples_1, krRV_examples_2, krRV_examples_3, krRV_suffix, krRV_task_description, kr_background_template
+
+from langchain.prompts import PromptTemplate
+from langchain.prompts import FewShotPromptTemplate
+from langchain.chains import ConversationChain
+from langchain.chains import LLMChain
+from langchain.memory import ConversationBufferMemory
+import copy
+import json
+import time
+import re
+
+from ai.main import llm, train_df, test_df
+from ai.parse import parse_data
+
+def krRV1(input_sentence, upper_objective, ex_description, guideline_krRV, example_krRV, isguide, isexample):
+    # 메모리 생성
+  kr_memory = ConversationBufferMemory()
+
+  # 1. 메모리의 system_message에 Task Description 추가
+  kr_memory.save_context(
+    inputs={"human": krRV_task_description},
+    outputs={"AI": "해결할 과제를 학습했습니다."},
+  )
+  
+  if isguide:
+    prefix_guideline = '- 주어진 가이드라인을 수정에 이용하세요'
+    guideline_krRV = guideline_krRV
+  else:
+    prefix_guideline = ' '
+    guideline_krRV = ' '
+    for example in example_krRV:
+      example["guideline"] = ' '
+
+  if isexample:
+    prefix_example = '- 예시는 참고용일 뿐입니다. 현재 주어진 문장에 집중하여 수정하세요.'
+  else:
+    prefix_example = ' '
+
+  prefix = krRV_task_description.format(prefix_guideline = prefix_guideline, prefix_example = prefix_example)
+  suffix = krRV_suffix.format(input_sentence = input_sentence, upper_objective = upper_objective,
+                              ex_description = ex_description,
+                              guideline_krRV = guideline_krRV)
+
+  krRV_fewshot_prompt = FewShotPromptTemplate(
+    prefix = prefix,
+    examples = example_krRV,
+    example_prompt = krRV_example_prompt,
+    suffix = suffix
+  )
+
+  if isexample:
+    final_prompt = krRV_fewshot_prompt.format(prefix_guideline = prefix_guideline, prefix_example = prefix_example)
+  else:
+    final_prompt = prefix + suffix
+
+  # print(type(final_prompt))
+  # print('*'*50, '\n', final_prompt, '\n', '*'*50)
+
+  chain_krRV = ConversationChain(
+    llm=llm,
+    memory=kr_memory,
+  )
+
+  krRV = chain_krRV.run(final_prompt)
+
+  res = parse_data(krRV)
+  return res
+
+# res = krRV1("밥을 먹는다", "건강해진다", "두 문장은 연관성이 높습니다", "측정은 어렵습니다. 직접성이 있습니다. 평가 요소를 살피십시오", krRV_examples_1, True, True)
+# print(res)
+# print(type(res))
+
+# def krRVsaveResult(df_data, index, result_kr):
+
+#   # df_data에 값 저장
+#   df_data.loc[index, 'predict_revision_description'] = str(result_kr['predict_revision_description'])
+#   df_data.loc[index, 'predict_revision'] = str(result_kr['predict_revision'])
+
+# def krRV(df_data, index, isguide, isexample):
+#   # 메모리 생성
+#   kr_memory = ConversationBufferMemory()
+
+#   # 1. 메모리의 system_message에 Task Description 추가
+#   kr_memory.save_context(
+#     inputs={"human": krRV_task_description},
+#     outputs={"AI": "해결할 과제를 학습했습니다."},
+#   )
+
+#   # 1.5 df_data에서 값 가져오기
+#   input_sentence = df_data.loc[index, 'input_sentence']
+#   upper_objective = df_data.loc[index, 'upper_objective']
+
+#   predict_connectivity_description = df_data.loc[index, 'predict_connectivity_description']
+#   predict_measurability_description = df_data.loc[index, 'predict_measurability_description']
+#   predict_directivity_description = df_data.loc[index, 'predict_directivity_description']
+
+#   company = df_data.loc[index, 'company']
+#   field = df_data.loc[index, 'field']
+#   team = df_data.loc[index, 'team']
+  
+#   if (df_data.loc[index, "type"] != "Key Result"):
+#     print("Key Result가 아닙니다.")
+#     return
+
+#   guideline_krRV = ''
+#   if isguide:
+#     guideline_krRV = df_data.loc[index, 'Keyresult_Question']
+
+#   print("index: ", index)
+#   print(f"row_num: {df_data.loc[index]['row_num']}")
+#   print("guideline_RV: ", str(guideline_krRV))
+#   print(f"input_sentence: {input_sentence}")
+#   print(f"upper_objective: {upper_objective}")
+#   print('\n')
+
+
+#   # 2. 메모리의 human_message에 background 정보 추가
+#   kr_background = kr_background_template.format(
+#     company=company,                  #회사명
+#     field=field,                      #업종
+#     team=team,                        #팀명
+#   )
+
+#   kr_memory.save_context(
+#     inputs={"system": kr_background},
+#     outputs={"AI": "기업의 배경 정보를 학습했습니다."},
+#   )
+
+#   # 2.5 평가요소마다 메모리 만들기
+#   krRV_memory= copy.deepcopy(kr_memory)
+
+
+#   # 평가 시행
+#   krRV = krRV1(input_sentence, upper_objective, krRV_memory,
+#               predict_connectivity_description, predict_measurability_description,predict_directivity_description,
+#               guideline_krRV, krRV_examples, isguide, isexample)
+
+#   return krRV
+
+# res = krRV(test_df, 59, True, True)
+# print(res)
+
+# -----------------------------------------------------------------------------------------------------
+#krRVprompt.py
+
+from langchain.prompts import PromptTemplate
+
+kr_background_template = """
+company: {company}
+field: {field}
+team: {team}
+"""
+
+krRV_task_description = """
+당신은 OKR(Objectives and Key Results) 평가 전문가입니다. 주어진 Key Result 문장을 다음 3단계 분석을 통해 개선하세요.
+
+-연관성 분석
+Objective와의 연결고리 강화, 직접적인 기여도 명확화, 핵심 가치 반영
+
+-측정 가능성 분석
+구체적인 수치 목표 설정, 명확한 측정 지표 추가, 시간 제약 명시
+
+-결과 지향성 분석
+활동 중심 문구를 결과 중심으로 변환, 최종 영향이나 가치를 명확히 표현, 달성 기준 구체화
+
+위의 단계별 사고 과정을 거친 후, 종합적으로 판단하여 다음 두 가지 결과를 아래처럼 json형식으로 제시하세요:
+
+  "description": "구체적인 수정 이유 (위의 사고 과정을 반영하여 작성)",
+  "revision": 최종 수정 문장
+
+{prefix_guideline}
+{prefix_example}
+"""
+
+# "guideline" : "우리맛 연구팀의 레시피 개발을 통해 고객이 요리에 대한 접근성을 얼마나 높였는가? 우리맛 연구팀의 콘텐츠를 통해 고객의 요리에 대한 흥미와 참여를 얼마나 높였는가? 우리맛 연구팀의 노력을 통해 고객이 하루에 한 끼는 요리를 하고 싶게 만드는 데 얼마나 성공했는가?",
+
+krRV_examples = [
+    {
+        "guideline": "추가 필요",
+        "input_sentence": "일상 요리들의 조리 과정을 50% 줄일 수 있는 제품+요리법을 연구, 개발한다.",
+        "upper_objective": "고객이 하루에 한 끼는 요리를 하고 싶게 한다.",
+        "EV_description": "조리를 쉽고 빠르게 할 수 있는 것은 고객이 하루에 한끼 정도는 요리를 할 수 있게 만드는 요소입니다. 현재대비 50% 정도로 요리 과정이 간소화되어야 하는데, 현재가 어느정도인지 나타나지 않아서 50%로 줄어드는 것을 측정하기 어렵다. 조리과정 50% 감소라는 것은 결과이나, 조리과정이 현재 어느정도에서 얼마나 달라지는지로 표현되어야 더 좋은 결과다",
+        "revision": "일상 요리 조리 평균 시간을 50분에서 25분으로 줄인다.",
+        "description": "구체적인 판단의 근거를 제시함",
+    }
+]
+
+krRV_example_prompt = PromptTemplate(
+    input_variables=[
+        "guideline",
+        "input_sentence",
+        "upper_objective",
+        "EV_description",
+        "description",
+        "revision",
+    ],
+    template="""
+  <예시 입력>
+  "guideline" : {guideline}
+  "input_sentence": {input_sentence}
+  "upper_objective": {upper_objective}
+  "EV_description": {EV_description}
+  
+  <예시 출력>
+  
+  "revision" : {revision}
+  "description" : {description}
+  
+  """,
+)
+
+krRV_suffix = """
+<실제 입력>
+"guideline": {guideline}
+"input_sentence": {input_sentence}
+"upper_objective": {upper_objective}
+"EV_description": {EV_description}
+
+<실제 출력>
+
+"description":
+"revision":
+
+
+출력 형식은 key가 description과 revision 2개인 json 형식입니다. json이라는 문구나 백틱 같은 특수문자는 사용하지 마십시오.
+"""
+
+krRV_examples_1 = [
+    {
+        "guideline": "추가 필요",
+        "input_sentence": "일상 요리들의 조리 과정을 50% 줄일 수 있는 제품+요리법을 연구, 개발한다.",
+        "upper_objective": "고객이 하루에 한 끼는 요리를 하고 싶게 한다.",
+        "EV_description": "조리를 쉽고 빠르게 할 수 있는 것은 고객이 하루에 한끼 정도는 요리를 할 수 있게 만드는 요소입니다.",
+        "description": "추가 필요",
+        "revision": "추가 필요",
+    }
+]
+
+krRV_examples_2 = [
+    {
+        "guideline": "추가 필요",
+        "input_sentence": "일상 요리들의 조리 과정을 50% 줄일 수 있는 제품+요리법을 연구, 개발한다.",
+        "upper_objective": "고객이 하루에 한 끼는 요리를 하고 싶게 한다.",
+        "EV_description": "조리를 쉽고 빠르게 할 수 있는 것은 고객이 하루에 한끼 정도는 요리를 할 수 있게 만드는 요소입니다.",
+        "description": "추가 필요",
+        "revision": "추가 필요",
+    }
+]
+
+krRV_examples_3 = [
+    {
+        "guideline": "추가 필요",
+        "input_sentence": "일상 요리들의 조리 과정을 50% 줄일 수 있는 제품+요리법을 연구, 개발한다.",
+        "upper_objective": "고객이 하루에 한 끼는 요리를 하고 싶게 한다.",
+        "EV_description": "조리를 쉽고 빠르게 할 수 있는 것은 고객이 하루에 한끼 정도는 요리를 할 수 있게 만드는 요소입니다.",
+        "description": "추가 필요",
+        "revision": "추가 필요",
+    }
+]
+
+# -----------------------------------------------------------------------------------------------------
+#llm_gemini.py
+
+import os
+from dotenv import load_dotenv
+from langchain_google_genai import ChatGoogleGenerativeAI
+
+load_dotenv("../.env")
+api_key = os.getenv("GOOGLE_API_KEY")
+
+gemini = ChatGoogleGenerativeAI(
+  model="gemini-pro"
+)
+
+# gemmini api test
+
+# res = gemini.invoke("hello").content
+# print(res)
+
+# -----------------------------------------------------------------------------------------------------
+#llm_gpt.py
+
+import os
+from dotenv import load_dotenv
+from langchain_openai import ChatOpenAI
+
+load_dotenv("../.env")
+api_key = os.getenv("OPENAI_API_KEY")
+
+gpt = ChatOpenAI(
+    model="gpt-4o",
+    temperature=0.2
+) #gpt-4o모델 사용
+
+# gpt api test
+
+# res = gpt.invoke("hello").content
+# print(res)
+
+# -----------------------------------------------------------------------------------------------------
+#llm_select.py
+
+from ai.llm_gpt import gpt
+from ai.llm_gemini import gemini
+
+
+def select_llm():
+    user_input = 1
+    # user_input = int(input("사용할 llm을 입력하세요(gpt는 0, gemini는 1) : "))
+    if user_input == 0:
+        llm = gpt
+    else:
+        llm = gemini
+    return llm
+
+
+llm = select_llm()
+
+# -----------------------------------------------------------------------------------------------------
+#main.py
+import subprocess
+import sys
+
+import pandas as pd
+from sklearn.model_selection import train_test_split
+
+
+# requirements.txt 설치 함수
+def install_requirements():
+    subprocess.check_call(
+        [sys.executable, "-m", "pip", "install", "-r", "requirements.txt"]
+    )
+
+
+def import_dataset():
+    df = pd.read_excel("240819_dataset_augmented_longreason_wg.xlsx")  # local 용
+    df = df.dropna(subset=["input_sentence", "upper_objective", "type"])
+    # "description"이 들어간 모든 열을 object 타입으로 변환
+    for col in df.columns:
+        if "description" in col:
+            df[col] = df[col].astype("object")
+    dfObjective = df[df["type"] == "Objective"]
+    dfKeyresult = df[df["type"] == "Key Result"]
+
+    trainObjective, testObjective = train_test_split(
+        dfObjective, test_size=0.2, random_state=99
+    )
+    trainKeyresult, testKeyresult = train_test_split(
+        dfKeyresult, test_size=0.2, random_state=99
+    )
+    train_df = pd.concat([trainObjective, trainKeyresult], ignore_index=True)
+    test_df = pd.concat([testObjective, testKeyresult], ignore_index=True)
+
+    return train_df, test_df
+
+
+# if __name__ == "__main__":
+# install_requirements()
+# select_llm()
+
+train_df, test_df = import_dataset()
+
+# -----------------------------------------------------------------------------------------------------
+#memorytest.py
+from langchain.memory import ConversationBufferMemory
+from langchain.chains import ConversationChain
+from ai.main import llm
+
+test_memory = ConversationBufferMemory()
+
+# 메모리의 system_message에 Task Description 추가
+test_memory.save_context(
+    inputs={"human": "1+1=3 이라고 믿고 싶어. 나랑 대화할때만 그렇게 답해줘"},
+    outputs={"AI": "네 알겠습니다..!"},
+)
+
+krEV_chain = ConversationChain(
+    llm=llm,
+    memory=test_memory,
+)
+
+krEV_res = krEV_chain.run("1+7은 몇이야?")
+print(krEV_res)
+
+# -----------------------------------------------------------------------------------------------------
+#obj.py
+
+from ai.objEVprompt import (
+    objEV_task_description,
+    objEV_example_prompt,
+    objEV_suffix,
+    objEV_align_description,
+    objEV_value_description,
+    objEV_align_examples,
+    objEV_value_examples,
+)
+
+from ai.objRVprompt import (
+    objRV_task_description,
+    objRV_example_prompt,
+    objRV_suffix,
+    objRV_examples,
+)
+
+from langchain.prompts import FewShotPromptTemplate
+from langchain.chains import ConversationChain
+from langchain.memory import ConversationBufferMemory
+
+from ai.llm_select import llm
+from ai.parse import EV_parse_data, RV_parse_data
+from ai.selfC import whowins
+
+
+# 기존 3개 함수를 하나로 합치고 objtype 파라미터로 구분하는 함수입니다.
+def objEV(
+    input_sentence, upper_objective, guideline, example, isguide, isexample, objtype
+):
+    memory = ConversationBufferMemory()
+
+    # 메모리의 system_message에 Task Description 추가
+    memory.save_context(
+        inputs={"human": objEV_task_description},
+        outputs={"AI": "저의 역할을 이해했습니다."},
+    )
+
+    # guideline
+    if isguide:
+        prefix_guideline = "- 주어진 가이드라인을 평가에 이용하세요"
+        guideline = guideline
+    else:
+        prefix_guideline = " "
+        guideline = " "
+        for example in example:
+            example["guideline"] = " "
+
+    # example
+    if isexample:
+        prefix_example = "- 예시는 참고용일 뿐입니다. 현재 주어진 input_sentence와 upper_objective에 집중하여 평가하세요."
+    else:
+        prefix_example = " "
+    if objtype == 0:  # align
+        obj_prefix = objEV_align_description.format(
+            prefix_guideline=prefix_guideline, prefix_example=prefix_example
+        )
+    elif objtype == 1:  # value
+        obj_prefix = objEV_value_description.format(
+            prefix_guideline=prefix_guideline, prefix_example=prefix_example
+        )
+    else:  # error
+        print("objtype parameter를 다시 확인하십시오. 0,1 중 하나여야 합니다.")
+
+    # suffix(평가 문장 등 정보 담음)
+    obj_suffix = objEV_suffix.format(
+        guideline=guideline,
+        input_sentence=input_sentence,
+        upper_objective=upper_objective,
+    )
+
+    if isexample:
+        objEV_fewshot_prompt = FewShotPromptTemplate(
+            prefix=obj_prefix + "\n\n",
+            examples=example,
+            example_prompt=objEV_example_prompt,
+            suffix=obj_suffix,
+        )
+        final_prompt = objEV_fewshot_prompt.format()
+    else:
+        final_prompt = obj_prefix + obj_suffix
+
+    print(type(final_prompt))
+    print("*" * 50, "\n", final_prompt, "\n", "*" * 50)
+
+    objEV_chain = ConversationChain(
+        llm=llm,
+        memory=memory,
+    )
+
+    objEV_res = objEV_chain.run(final_prompt)
+
+    objEV_res = EV_parse_data(objEV_res)
+    return objEV_res
+
+
+# res2 = objEV(
+#     "식량을 많이 준비한다.",
+#     "살아남는다.",
+#     "출력 양식을 잘 지키십시오",
+#     objEV_align_examples,
+#     True,
+#     True,
+#     0,
+# )
+# print(res2)
+
+
+def objEV_selfC(
+    input_sentence, upper_objective, guideline, example, isguide, isexample, krtype
+):
+    res1 = objEV(
+        input_sentence, upper_objective, guideline, example, isguide, isexample, krtype
+    )
+
+    description1 = res1["description"]
+    score1 = res1["score"]
+
+    res2 = objEV(
+        input_sentence, upper_objective, guideline, example, isguide, isexample, krtype
+    )
+
+    description2 = res2["description"]
+    score2 = res2["score"]
+
+    res3 = objEV(
+        input_sentence, upper_objective, guideline, example, isguide, isexample, krtype
+    )
+
+    description3 = res3["description"]
+    score3 = res3["score"]
+
+    return whowins(description1, description2, description3, score1, score2, score3)
+
+
+# res1 = objEV_selfC(
+#     "식량을 많이 준비한다.",
+#     "살아남는다.",
+#     "출력 양식을 잘 지키십시오",
+#     objEV_align_examples,
+#     True,
+#     True,
+#     0,
+# )
+# print(res1)
+
+
+def objRV(
+    input_sentence,
+    upper_objective,
+    guideline,
+    example,
+    EV_description,
+    isguide,
+    isexample,
+):
+
+    # guideline
+    if isguide:
+        prefix_guideline = "- 주어진 가이드라인을 평가에 이용하세요"
+        guideline = guideline
+    else:
+        prefix_guideline = " "
+        guideline = " "
+        for example in example:
+            example["guideline"] = " "
+
+    # example
+    if isexample:
+        prefix_example = "- 예시는 참고용일 뿐입니다. 현재 주어진 input_sentence와 upper_objective에 집중하여 평가하세요."
+    else:
+        prefix_example = " "
+
+    prefix = objRV_task_description.format(
+        prefix_guideline=prefix_guideline, prefix_example=prefix_example
+    )
+
+    # suffix(평가 문장 등 정보 담음)
+    suffix = objRV_suffix.format(
+        guideline=guideline,
+        input_sentence=input_sentence,
+        upper_objective=upper_objective,
+        EV_description=EV_description,
+    )
+
+    if isexample:
+        objRV_fewshot_prompt = FewShotPromptTemplate(
+            prefix=prefix + "\n\n",
+            examples=example,
+            example_prompt=objRV_example_prompt,
+            suffix=suffix,
+        )
+        final_prompt = objRV_fewshot_prompt.format(
+            input_sentence=input_sentence, upper_objective=upper_objective
+        )
+    else:
+        final_prompt = prefix + suffix
+
+    print(type(final_prompt))
+    print("*" * 50, "\n", final_prompt, "\n", "*" * 50)
+
+    objRV_chain = ConversationChain(llm=llm)
+
+    objRV_res = objRV_chain.run(final_prompt)
+    print(objRV_res)
+
+    objRV_res = RV_parse_data(objRV_res)
+    return objRV_res
+
+
+# res2 = objRV(
+#     "백화점에 간다.",
+#     "친구 생일을 준비한다.",
+#     "백화점에는 선물이 많이 있습니다.",
+#     objRV_examples,
+#     "생일에는 보통 선물을 사 주므로 연관성이 있습니다. ",
+#     True,
+#     True,
+# )
+
+# print(res2)
+
+# -----------------------------------------------------------------------------------------------------
+#objEV.py
+
+from ai.objEVprompt import obj_background_template, objEV_align_description, objEV_align_example_prompt, objEV_align_examples, objEV_align_examples_1, objEV_align_examples_2, objEV_align_examples_3, objEV_align_suffix, objEV_task_description, objEV_value_description, objEV_value_example_prompt, objEV_value_examples, objEV_value_examples_1, objEV_value_examples_2, objEV_value_examples_3, objEV_value_suffix
+
+from langchain.prompts import PromptTemplate
+from langchain.prompts import FewShotPromptTemplate
+from langchain.chains import ConversationChain
+from langchain.chains import LLMChain
+from langchain.memory import ConversationBufferMemory
+import copy
+import json
+import time
+import re
+
+from ai.parse import parse_data, selfC
+from ai.main import llm, train_df, test_df
+
+def objalignEV(input_sentence, upper_objective, objEV_memory_tests, guideline_ali, example_ali, isguide, isexample):
+  if isguide:
+    prefix_guideline = '- 주어진 가이드라인을 평가에 이용하세요'
+    guideline_ali = guideline_ali
+  else:
+    prefix_guideline = ' '
+    guideline_ali = ' '
+    for example in example_ali:
+      example["guideline"] = ' '
+
+  if isexample:
+    prefix_example = '- 예시는 참고용일 뿐입니다. 현재 주어진 input_sentence와 upper_objective에 집중하여 평가하세요.'
+  else:
+    prefix_example = ' '
+
+  prefix = objEV_align_description.format(prefix_guideline = prefix_guideline, prefix_example = prefix_example)
+  suffix = objEV_align_suffix.format(input_sentence = input_sentence, upper_objective = upper_objective, guideline_ali = guideline_ali)
+
+  objEV_align_fewshot_prompt = FewShotPromptTemplate(
+    prefix = prefix + '\n\n',
+    examples = example_ali,
+    example_prompt = objEV_align_example_prompt,
+    suffix = suffix
+  )
+
+  if isexample:
+    final_prompt = objEV_align_fewshot_prompt.format(input_sentence=input_sentence, upper_objective=upper_objective)
+  else:
+    final_prompt = prefix + suffix
+
+  # print(type(final_prompt))
+  # print('*'*50, '\n', final_prompt, '\n', '*'*50)
+
+  chain_align = ConversationChain(
+    llm=llm,
+    memory=objEV_memory_tests,
+  )
+
+  objEV_align = chain_align.run(final_prompt)
+
+  res = parse_data(objEV_align)
+  return res
+
+def objvalueEV(input_sentence, upper_objective, objEV_memory_tests, guideline_val, example_val, isguide, isexample):
+  if isguide:
+    prefix_guideline = '- 주어진 가이드라인을 평가에 이용하세요'
+    guideline_val = guideline_val
+  else:
+    prefix_guideline = ' '
+    guideline_val = ' '
+    for example in example_val:
+      example["guideline"] = ' '
+
+  if isexample:
+    prefix_example = '- 예시는 참고용일 뿐입니다. 현재 주어진 input_sentence와 upper_objective에 집중하여 평가하세요.'
+  else:
+    prefix_example = ' '
+
+  prefix = objEV_value_description.format(prefix_guideline = prefix_guideline, prefix_example = prefix_example)
+  suffix = objEV_value_suffix.format(input_sentence = input_sentence, upper_objective = upper_objective, guideline_val = guideline_val)
+
+  objEV_valnectivity_fewshot_prompt = FewShotPromptTemplate(
+    prefix = prefix + '\n\n',
+    examples = example_val,
+    example_prompt = objEV_value_example_prompt,
+    suffix = suffix
+  )
+
+  if isexample:
+    final_prompt = objEV_valnectivity_fewshot_prompt.format(input_sentence=input_sentence, upper_objective=upper_objective)
+  else:
+    final_prompt = prefix + suffix
+
+  # print(type(final_prompt))
+  # print('*'*50, '\n', final_prompt, '\n', '*'*50)
+
+  chain_value = ConversationChain(
+    llm=llm,
+    memory=objEV_memory_tests,
+  )
+
+  objEV_value = chain_value.run(final_prompt)
+
+  res = parse_data(objEV_value)
+  return res
+
+def objEVsaveResult(df_data, index, result_obj):
+    # predict_align_description
+    try:
+        df_data.loc[index, 'predict_align_description'] = str(result_obj.get('predict_align_description', 'N/A'))
+    except (KeyError, ValueError, TypeError) as e:
+        df_data.loc[index, 'predict_align_description'] = 'N/A'
+        print(f"Error saving 'predict_align_description' for index {index}: {e}")
+
+    # predict_align_score
+    try:
+        df_data.loc[index, 'predict_align_score'] = float(result_obj.get('predict_align_score', 0.0))
+    except (KeyError, ValueError, TypeError) as e:
+        df_data.loc[index, 'predict_align_score'] = 0.0
+        print(f"Error saving 'predict_align_score' for index {index}: {e}")
+
+    # predict_value_description
+    try:
+        df_data.loc[index, 'predict_value_description'] = str(result_obj.get('predict_value_description', 'N/A'))
+    except (KeyError, ValueError, TypeError) as e:
+        df_data.loc[index, 'predict_value_description'] = 'N/A'
+        print(f"Error saving 'predict_value_description' for index {index}: {e}")
+
+    # predict_value_score
+    try:
+        df_data.loc[index, 'predict_value_score'] = float(result_obj.get('predict_value_score', 0.0))
+    except (KeyError, ValueError, TypeError) as e:
+        df_data.loc[index, 'predict_value_score'] = 0.0
+        print(f"Error saving 'predict_value_score' for index {index}: {e}")
+
+
+# obj 평가
+
+def objEV(df_data, index, isguide, isexample):
+  # 메모리 생성
+  obj_memory = ConversationBufferMemory()
+
+  # 1. 메모리의 system_message에 Task Description 추가
+  obj_memory.save_context(
+    inputs={"human": objEV_task_description},
+    outputs={"AI": "해결할 과제를 학습했습니다."},
+  )
+
+  # 1.5 df_data에서 값 가져오기
+  input_sentence = df_data.loc[index, 'input_sentence']
+  upper_objective = df_data.loc[index, 'upper_objective']
+  company = df_data.loc[index, 'company']
+  field = df_data.loc[index, 'field']
+  team = df_data.loc[index, 'team']
+
+  guideline_ali = ''
+  guideline_val = ''
+  if isguide:
+    guideline_ali = df_data.loc[index, 'Align_Question']
+    guideline_val = df_data.loc[index, 'Customer_Value_Question']
+
+  print("index: ", index)
+  print(f"row_num: {df_data.loc[index]['row_num']}")
+  print("guideline_align: ", str(guideline_ali))
+  print("guideline_value: ", str(guideline_val))
+  print(f"input_sentence: {input_sentence}")
+  print(f"upper_objective: {upper_objective}")
+  print('\n')
+
+
+  # 2. 메모리의 human_message에 background 정보 추가
+  obj_background = obj_background_template.format(
+    company=company,                  #회사명
+    field=field,                      #업종
+    team=team,                        #팀명
+  )
+
+  obj_memory.save_context(
+    inputs={"system": obj_background},
+    outputs={"AI": "기업의 배경 정보를 학습했습니다."},
+  )
+
+  # 2.5 평가요소마다 메모리 만들기
+  objEV_memory_align = copy.deepcopy(obj_memory)
+  objEV_memory_value = copy.deepcopy(obj_memory)
+
+  # 평가 시행
+  objEV_align = objalignEV(input_sentence, upper_objective, objEV_memory_align, guideline_ali, objEV_align_examples, isguide, isexample)
+  objEV_value = objvalueEV(input_sentence, upper_objective, objEV_memory_value, guideline_val, objEV_value_examples, isguide, isexample)
+
+  return objEV_align | objEV_value
+  
+def objEV_selfC(df_data, index, isguide, isexample):
+  # 메모리 생성
+  obj_memory = ConversationBufferMemory()
+
+  # 1. 메모리의 system_message에 Task Description 추가
+  obj_memory.save_context(
+    inputs={"human": objEV_task_description},
+    outputs={"AI": "해결할 과제를 학습했습니다."},
+  )
+
+  # 1.5 df_data에서 값 가져오기
+  input_sentence = df_data.loc[index, 'input_sentence']
+  upper_objective = df_data.loc[index, 'upper_objective']
+  company = df_data.loc[index, 'company']
+  field = df_data.loc[index, 'field']
+  team = df_data.loc[index, 'team']
+
+  guideline_ali = ''
+  guideline_val = ''
+  if isguide:
+    guideline_ali = df_data.loc[index, 'Align_Question']
+    guideline_val = df_data.loc[index, 'Customer_Value_Question']
+
+  print("index: ", index)
+  print(f"row_num: {df_data.loc[index]['row_num']}")
+  print("guideline_align: ", guideline_ali)
+  print("guideline_value: ", guideline_val)
+  print(f"input_sentence: {input_sentence}")
+  print(f"upper_objective: {upper_objective}")
+  print('\n')
+
+
+  # 2. 메모리의 human_message에 background 정보 추가
+  obj_background = obj_background_template.format(
+    company=company,                  #회사명
+    field=field,                      #업종
+    team=team,                        #팀명
+  )
+
+  obj_memory.save_context(
+    inputs={"system": obj_background},
+    outputs={"AI": "기업의 배경 정보를 학습했습니다."},
+  )
+
+  # 2.5 평가요소마다 메모리 만들기
+  objEV_memory_align = copy.deepcopy(obj_memory)
+  objEV_memory_value = copy.deepcopy(obj_memory)
+
+  # 평가 시행
+  objEV_align = selfC(objalignEV, input_sentence, upper_objective, objEV_memory_align, guideline_ali, objEV_align_examples_1, objEV_align_examples_2, objEV_align_examples_3, isguide, isexample, "align")
+  objEV_value = selfC(objvalueEV, input_sentence, upper_objective, objEV_memory_value, guideline_val, objEV_value_examples_1, objEV_value_examples_2, objEV_value_examples_3, isguide, isexample, "value")
+
+  # 결과 저장, 문자열 메소드 이용
+  objEVsaveResult(df_data, index, objEV_align | objEV_value)
+
+  #결과 출력
+  # print("<obj evaluation>")
+  # print(f"predict_align_score: {df_data.loc[index, 'predict_align_score']}")
+  # print(f"predict_align_description: {df_data.loc[index, 'predict_align_description']}")
+  # print(f"predict_value_score: {df_data.loc[index, 'predict_value_score']}")
+  # print(f"predict_value_description: {df_data.loc[index, 'predict_value_description']}")
+  # print('\n')
+  
+  
+res = objEV(test_df, 10, True, True)
+print(res)
+print(type(res))
+
+#-----------------------------------------------------------------------------------------------------
+#objEVprompt.py
+
+from langchain.prompts import PromptTemplate
+
+objEV_task_description = """
+당신은 세계적으로 인정받는 OKR(Objectives and Key Results) 전문 컨설턴트입니다. 당신의 임무는 주어진 Objective를 철저히 분석하고 평가하여, 조직의 목표 달성을 위한 최적의 OKR 수립을 돕는 것입니다.
+
+평가 대상
+input_sentence: {input_sentence}
+upper_objective: {upper_objective}
+company: {company}
+field: {field}
+team: {team}
+
+각 기준에 대해 다음 정보를 제공하세요.
+- description: 점수에 대한 구체적인 근거를 설명합니다.
+- score: 1-5점 (1: 매우 낮음, 5: 매우 높음)
+
+평가 지침.
+1. 주어진 회사, 업종, 가이드라인, 팀 정보를 고려하여 맥락에 맞는 평가를 제공하세요.
+2. 객관적이고 전문적인 관점에서 평가하되, 확신에 찬 톤으로 의견을 제시하세요.
+3. 각 평가 요소를 개별적으로 분석하세요.
+4. 산업 특성을 고려하여 평가에 반영하세요.
+"""
+
+obj_background_template = """
+company: {company}
+field: {field}
+team: {team}
+"""
+
+
+# 예시 형식 지정, input_variables에 해당하는 변수만 바뀔거고 { } 자리에 들어간다는 의미.
+objEV_example_prompt = PromptTemplate(
+    input_variables=[
+        "guideline",
+        "input_sentence",
+        "upper_objective",
+        "description",
+        "score",
+    ],
+    template="""
+<예시 입력>
+"guideline": {guideline}
+"input_sentence": {input_sentence}
+"upper_objective": {upper_objective}
+
+<예시 출력>
+
+"description": {description}
+"score": {score}
+
+""",
+)
+
+objEV_suffix = """
+<실제 입력>
+"guideline": {guideline}
+"input_sentence": {input_sentence}
+"upper_objective": {upper_objective}
+
+<실제 출력>
+"description": ,
+"score": 
+
+
+출력 형식은 key가 description와 score 2개인 json형식입니다. json이라는 문구나 백틱 같은 특수문자는 사용하지 마십시오.
+"""
+
+# 평가요소의 의미 설명
+objEV_align_description = """
+당신은 OKR(Objectives and Key Results) 평가 전문가입니다. 주어진 Objective(input_sentence)가 Upper_Objective와 얼마나 align되어 있는지 평가해야 합니다. 다음 평가 기준에 따라 단계적으로 사고하세요.
+
+1. 점수별 기준 검토
+   1점 기준 =
+   - Objective가 Upper_Objective와 완전히 무관한가요?
+   2점 기준 =
+   - Objective가 Upper Objective의 Align이 아예 무관하다고 보기 어렵지만, Align의 정도를 판단하기 위해서 여러 가정들을 거쳐야 하나요?
+   3점 기준 =
+   - Objective가 Upper Objective와 전략적으로는 연결되어 있지만, 초점이 다소 불분명한가요?
+   4점 기준 =
+   - Objective가 Upper Objective와 명확한 연관성이 있으나, 일부 개선이 필요한가요?
+   5점 기준 =
+   - Objective가 Upper Objective와의 전체 혹은 일부와 전략적 연결이 매우 뚜렷한가요? 또는 최상위 조직의 경우, 미션/비전/전략 방향이 균형있게 반영되어있나요?
+
+2. 산업 및 조직 특성 고려
+   - 주어진 회사, 업종, 팀 정보를 고려할 때, 이 objective의 Upper objective와의 연관성은 어떻게 평가되나요?
+
+3. 종합 평가
+   위의 분석을 바탕으로, 1-5점 척도에서 어떤 점수가 가장 적절한가요? 그 이유는 무엇인가요?
+
+위의 단계별 사고 과정을 거친 후, 종합적으로 평가하여 다음 두 가지 결과를 제시하세요.
+
+1. description: 평가 기준에 따른 구체적인 평가 (위의 사고 과정을 반영하여 작성)
+2. score: 최종 평가 점수 (1-5점)
+
+주의사항.
+- 평가는 객관적이고 전문적이어야 하며, 주어진 회사, 업종, 팀 정보를 고려하여 맥락에 맞는 평가를 제공하세요.
+- 확신에 찬 톤으로 답변하되, 합리적이고 구체적인 근거를 제시하세요.
+- 산업과 조직의 특성을 고려하여 평가에 반영하세요.
+
+{prefix_guideline}
+{prefix_example}
+
+이제 주어진 input_sentence에 대해 위의 단계를 따라 사고하고, 요청된 형식으로 결과를 제시하세요.
+"""
+
+# fewshot
+objEV_align_examples = [
+    {
+        "guideline": "해당 고객층 확보는 어떻게 공비서 프로그램의 초기 전략인 '모든 매출은 고객에게서 나온다'에 기여할까요? (예: 고객층을 네일샵 초보 창업자로 설정하면, 이들은 공비서 프로그램을 통해 매장 운영 노하우를 배우고 비즈니스 성장을 도모하며 매출 증대를 이끌어 낼 수 있습니다.), 해당 마케팅 전략은 어떻게 공비서 프로그램의 초기 전략인 '고객 확대'에 기여하며, 고객 만족으로 이어질 수 있을까요? (예: 네일샵 관련 커뮤니티 및 SNS 채널을 활용한 마케팅 전략은 타겟 고객에게 효과적으로 공비서 프로그램을 알릴 수 있으며, 프로그램 사용 후기를 공유하여 신뢰도를 높이고 고객 만족으로 이어질 수 있습니다.), 차별화된 기능 또는 서비스는 어떻게 고객 확대 목표에 기여하고, 공비서 프로그램의 경쟁력을 강화할 수 있을까요? (예: 고객 관리 시스템과 연동된 마케팅 자동화 기능은 원장님들의 마케팅 효율성을 높여주고, 고객 만족도를 향상시켜 고객 유지율을 높이고 새로운 고객 확보에도 기여할 수 있습니다.)",
+        "input_sentence": "신규 고객 유치 (매출 300% 달성 목표)",
+        "upper_objective": "공비서 초기 전략은 모든 매출은 고객에게서 나온다 임. 그래서, 고객만족을 위한 사용성 개선과 더불어 고객의 확장 전략에 집중. 이 OKR은 고객 확대에 집중하는 것임",
+        "description": "고객확대 전략에 얼라인한 신규고객유치에 집중하는 것을 최우선순위로 잡는다",
+        "score": "4.5",
+    }
+]
+
+# 평가요소의 의미 설명
+objEV_value_description = """
+당신은 OKR(Objectives and Key Results) 평가 전문가입니다. 주어진 Objective(input_sentence)가 얼마나 고객에게 제공하는 가치를 언급하고 있는지 평가해야 합니다. 다음 평가 기준에 따라 단계적으로 사고하세요.
+
+1. 점수별 기준 검토
+   1점 기준 =
+   - Objective가 고객 가치와 완전히 무관한가요?
+   2점 기준 =
+   - Objective에 고객에 관한 문제나 상황은 있지만, 제공하고자 하는 가치가 나타나지 않나요?
+   3점 기준 =
+   - Objective에서 고객에게 제공하고자 하는 가치는 분명하지만, 전략적으로 고객의 필요와의 일치 여부가 다소 모호한가요?
+   4점 기준 =
+   - Objective에서 고객에게 제공하고자 하는 가치가 현재 고객의 필요와 대체로 일치하지만, 일부 측면에서 명확성이나 구체성이 부족한가요?
+   5점 기준 =
+   - Objective의 고객에게 제공하고자 하는 가치 혹은 고객이 겪는 문제에 대한 해결이 현재 고객에게 필요한 것과 일치하고, 이를 명확하게 표현하고 있나요?
+2. 산업 및 조직 특성 고려
+   - 주어진 회사, 업종, 팀 정보를 고려할 때, 이 objective의 고객 가치 지향성은 어떻게 평가되나요?
+3. 종합 평가
+   위의 분석을 바탕으로, 1-5점 척도에서 어떤 점수가 가장 적절한가요? 그 이유는 무엇인가요?
+
+위의 단계별 사고 과정을 거친 후, 종합적으로 평가하여 다음 두 가지 결과를 제시하세요.
+
+1. description: 평가 기준에 따른 구체적인 평가 (위의 사고 과정을 반영하여 작성)
+2. score: 최종 평가 점수 (1-5점)
+
+주의사항.
+- 평가는 객관적이고 전문적이어야 하며, 주어진 회사, 업종, 팀 정보를 고려하여 맥락에 맞는 평가를 제공하세요.
+- 확신에 찬 톤으로 답변하되, 합리적이고 구체적인 근거를 제시하세요.
+- 산업과 조직의 특성을 고려하여 평가에 반영하세요.
+
+{prefix_guideline}
+{prefix_example}
+
+이제 주어진 input_sentence에 대해 위의 단계를 따라 사고하고, 요청된 형식으로 결과를 제시하세요.
+"""
+
+# fewshot
+objEV_value_examples = [
+    {
+        "guideline": "이 기능적인 개선은 원장님과 손님의 어떤 불편함을 해결하여 어떤 가치를 제공할 수 있을까요? (예: 예약 시스템 개선은 원장님들의 예약 관리 부담을 줄이고, 손님들은 원하는 시간에 쉽게 예약을 할 수 있어 편리성을 높일 수 있습니다.), 이 기술적인 개선은 원장님과 손님의 어떤 불안감을 해소하여 어떤 가치를 제공할 수 있을까요? (예: 데이터 백업 시스템 구축은 프로그램 오류 발생 시 데이터 손실에 대한 원장님들의 불안감을 해소하고, 손님들의 정보 유출에 대한 우려를 줄여 안전한 서비스 이용 환경을 제공합니다.), 이 새로운 기능은 원장님과 손님에게 어떤 새로운 가치를 제공할 수 있을까요? (예: 고객 관리 기능 추가는 원장님들이 고객과의 소통을 강화하고, 손님들에게 맞춤형 서비스를 제공할 수 있도록 지원하여 만족도를 높일 수 있습니다.)",
+        "input_sentence": "서비스 품질 및 사용성 제고 (서비스 편의성, 직관성, 안정성 개선)",
+        "upper_objective": "공비서는 뷰티서비스를 제공하는 원장님과 샵을 이용하는 손님의 불편을 IT 기술로 해결하여, 원장님들의 비즈니스 성장을 촉진한다. 이를 위해서 IT기술을 발전시켜 서비스 사용성을 높여간다.",
+        "description": "고객에게 제공하고자 하는 가치인 편의성/직관성/안정성은 분명하지만, 구체적인 고객 니즈가 모호하다",
+        "score": "3",
+    }
+]
+
+objEV_align_examples_1 = [
+    {
+        "guideline": "이 질문을 통해 도출된 타겟 고객과 그들의 니즈는 어떻게 '고객 확대 전략'에 연결될까요? (예: 타겟 고객을 20~30대 여성 원장님으로 설정하고, 이들의 주요 니즈가 예약 관리 자동화와 마케팅 지원이라는 결과를 도출했다면, 이를 기반으로 예약 시스템 개선과 마케팅 기능 추가를 통해 공비서 프로그램의 매력도를 높여 고객 확대를 목표로 설정할 수 있습니다.), 이 차별화된 가치는 어떻게 공비서 프로그램의 '고객 확대' 목표 달성에 기여할까요? (예: 경쟁 서비스와 달리 고객 맞춤형 마케팅 기능을 제공하여 고객 확보 및 유지에 효과를 높일 수 있다는 차별점을 발견했다면, 이를 기반으로 마케팅 기능 강화를 통해 고객 확대를 목표로 설정할 수 있습니다.), 이 홍보 전략은 어떻게 '고객 확대' 목표 달성에 기여할까요? (예: 네일샵 관련 온라인 커뮤니티에 공비서 프로그램 광고를 게재하여 타겟 고객에게 효과적으로 홍보하는 전략을 수립했다면, 이를 통해 신규 고객 유입을 증가시켜 고객 확대 목표를 달성할 수 있습니다.)",
+        "input_sentence": "신규 고객 유치 (매출 300% 달성 목표)",
+        "upper_objective": "(최상위) 공비서 초기 전략은 모든 매출은 고객에게서 나온다 임. 그래서, 고객만족을 위한 사용성개선과 더불어 고객의 확대 전략에 집중. 이 OKR은 고객확대에 집중하는 것임",
+        "description": "고객확대 전략에 얼라인한 신규고객유치에 집중하는 것을 최우선순위로 잡는다",
+        "score": "4.5",
+    },
+    {
+        "guideline": "이 연계 마케팅 전략은 어떻게 원장님들의 비즈니스 성장을 가속화하는 IT 기술 고도화 목표와 연결될 수 있을까요? (예: 앱에서 스토어 상품 추천을 통해 원장님들의 제품 판매를 증진시키고, 이는 원장님들의 수익 증대에 기여할 수 있습니다.), 이 사용자 경험 개선 전략은 어떻게 IT 기술 고도화를 통해 서비스 사용성을 높이는 목표와 부합할 수 있을까요? (예: 사용자 인터페이스 개선은 앱 이용 편의성을 증대시켜 고객 만족도를 높이고, 더 많은 고객이 앱을 지속적으로 사용하도록 유도하여 서비스 사용성을 높일 수 있습니다.), 이 상품 경쟁력 강화 전략은 어떻게 IT 기술 고도화를 통해 서비스 사용성을 높이는 목표와 연관될 수 있을까요? (예: 상품 데이터 분석을 통한 트렌드 상품 발굴은 고객의 선호도를 파악하여 맞춤형 상품을 제공하고, 원장님들의 제품 선택을 돕는 IT 기술을 활용하여 서비스 사용성을 향상시킬 수 있습니다.)",
+        "input_sentence": "서비스 연계 마케팅 강화 (공비서, 공비서 스토어, 네일아트앱)",
+        "upper_objective": "(최상위) 공비서는 뷰티서비스를 제공하는 원장님과 샵을 이용하는 손님의 불편을 IT 기술로 해결하여, 원장님들의 비스니스 성장을 가속화한다. 이를 위해서 IT기술을 고도화하여 서비스 사용성을 높여간다.",
+        "description": "비즈니스 성장 가속화라는 점과 연관성은 있지만, 비즈니스 성장과 마케팅 강화사이의 연결성을 설명할 초점이 모호하다",
+        "score": "4",
+    },
+]
+
+objEV_align_examples_2 = [
+    {
+        "guideline": "스마트 러닝 사업의 핵심 경쟁력은 어떻게 국내 온라인 교육시장을 선도하고, 업계 선두를 유지하는 목표 달성에 기여할 수 있을까요? (예: AI 기반 개인 맞춤형 학습 시스템은 학습 효과를 극대화하여 고객 만족도를 높이고, 경쟁사와 차별화된 강점을 제공하여 시장 지배력을 확보할 수 있습니다.), 온라인 교육 서비스의 개선 방향은 어떻게 빠르게 변화하는 고객 학습 방식에 대응하고, 온 오프라인을 아우르는 블렌디드 러닝 서비스를 넘어 스마트 러닝 사업으로 나아가는 목표 달성에 기여할 수 있을까요? (예: 모바일 친화적인 학습 환경 구축은 고객의 시간과 장소 제약 없이 편리한 학습을 가능하게 하고, 꾸준한 학습 참여를 유도하여 스마트 러닝 사업 성공에 기여할 수 있습니다.), 블렌디드 러닝 서비스는 어떻게 온라인 교육 서비스를 발전시키고, 스마트 러닝 사업으로의 전환을 위한 발판 역할을 할 수 있을까요? (예: 오프라인 강의와 온라인 학습 콘텐츠를 연계하여 학습 효과를 극대화하고, 고객의 학습 참여도를 높여 스마트 러닝 사업으로의 자연스러운 전환을 유도할 수 있습니다.)",
+        "input_sentence": "에듀테크 기업으로 변모한다.",
+        "upper_objective": "(최상위) 국내 온라인 교육시장을 이끌며 사업시작 일 년 만에 업계 선두로 올라서고 유지해 왔다. 코로나 이후 빠르게 변하고 있는 고객 학습방식과 시장 변화에 따라, 온라인 교육 서비스로 발전시키고, 온 오프라인을 아우르는 블렌디드 러닝 서비스를 넘어 스마트 러닝 사업에 힘을 쏟고 있다.",
+        "description": "코로나 이후 달라진 환경에 적응하기 위한 전략과 연관되어 있다",
+        "score": "4",
+    }
+]
+
+objEV_align_examples_3 = [
+    {
+        "guideline": "새로운 기획 개발은 어떻게 시장의 기회를 살리고 다양한 콘텐츠 소비 확장에 기여할까요? (예:  온라인 콘텐츠 소비 증가를 반영하여,  웹툰, 웹소설 등 디지털 콘텐츠 기획 개발을 통해 시장 경쟁력을 확보할 수 있습니다.), 독자 충성도 증진은 어떻게 다양한 콘텐츠 소비 확장과 시장 기회 포착에 기여할까요? (예:  독자 커뮤니티 운영을 통해 콘텐츠 관련 정보 공유와 소통 기회 제공,  독자 맞춤형 콘텐츠 추천 서비스를 제공하여 독자 만족도를 높일 수 있습니다.), 제휴 및 협업은 어떻게 시장의 기회를 포착하고 다양한 콘텐츠 소비 확장에 기여할까요? (예:  웹툰 플랫폼,  온라인 서점 등 다른 플랫폼과의 제휴를 통해 홍보 및 판매 채널 확대,  콘텐츠 제작 및 유통 분야의 전문 기업과 협력하여 시너지 효과 창출 가능합니다.)",
+        "input_sentence": "2021년 시장 전망을 토대로, 팀별 타깃 독자에게 꼭 필요한 기획을 충분히 확보한다.",
+        "upper_objective": "(최상위)코비드로 사람들의 라이프스타일이 달라지고 있고, 다양한 콘텐츠 소비가 확장되고 있는 상황에서 시장의 기회를 살릴 수 있는 다양한 기획 확보가 매우 중요함",
+        "description": "코비드로 인한 고객의 라이프스타일 변화가 창출하는 기회와 얼라인되는 내용이 없다",
+        "score": "2",
+    }
+]
+
+objEV_value_examples_1 = [
+    {
+        "guideline": "이 질문을 통해 파악된 고객 니즈는 어떻게 '고객 만족'으로 이어질 수 있을까요? (예: 20~30대 여성 원장님들의 주요 니즈가 예약 관리 자동화라는 결과를 도출했다면, 자동 예약 시스템을 통해 원장님들이 시간 관리를 효율적으로 할 수 있도록 돕고, 여가 시간을 확보할 수 있도록 지원하여 고객 만족도를 높일 수 있습니다.), 이 차별화된 가치는 어떤 고객 문제를 해결하여 '고객 만족'으로 이어질 수 있을까요? (예: 경쟁 서비스와 달리 고객 데이터 분석 기능을 제공하여 개인 맞춤형 마케팅 전략 수립을 지원한다는 차별점을 발견했다면, 이는 원장님들의 마케팅 효율성을 높여 매출 증진에 기여하고, 고객 만족도를 높일 수 있습니다.), 이 홍보 전략은 어떻게 '고객 만족'에 기여할까요? (예: 네일샵 관련 박람회에 참여하여 공비서 프로그램을 직접 시연하고, 원장님들의 궁금증을 해소하는 홍보 전략을 수립했다면, 이를 통해 프로그램에 대한 이해도를 높이고, 만족도를 향상시켜 고객 만족으로 이어질 수 있습니다.)",
+        "input_sentence": "신규 고객 유치 (매출 300% 달성 목표)",
+        "upper_objective": "(최상위) 공비서 초기 전략은 모든 매출은 고객에게서 나온다 임. 그래서, 고객만족을 위한 사용성개선과 더불어 고객의 확대 전략에 집중. 이 OKR은 고객확대에 집중하는 것임",
+        "description": "고객 제공 가치는 없다",
+        "score": "1",
+    },
+    {
+        "guideline": "이 연계 마케팅 전략은 고객들에게 어떤 가치를 제공하고, 어떤 불편함을 해소할 수 있을까요? (예: 앱에서 손쉽게 필요한 네일 용품을 구매할 수 있도록 연결하여 고객의 편의성을 높이고, 원장님의 추천 상품을 통해 고객의 선택 폭을 넓힐 수 있습니다.), 이 사용자 경험 개선은 고객들에게 어떤 가치를 제공하고, 어떤 불편함을 해소할 수 있을까요? (예: 앱 내 검색 기능 강화는 고객이 원하는 정보를 빠르고 쉽게 찾도록 도와 앱 사용 만족도를 높이고, 개인 맞춤형 콘텐츠 제공은 고객의 니즈를 충족시켜 앱 이용 시간을 늘리고 유지율을 높일 수 있습니다.), 이 상품 경쟁력 강화 전략은 원장님과 고객들에게 어떤 가치를 제공하고, 어떤 불편함을 해소할 수 있을까요? (예: 품질 좋은 네일 용품을 경쟁력 있는 가격에 제공하여 고객 만족도를 높이고, 원장님들에게는 다양한 상품 선택지를 제공하여 사업 운영 효율성을 높일 수 있습니다.)",
+        "input_sentence": "서비스 연계 마케팅 강화 (공비서, 공비서 스토어, 네일아트앱)",
+        "upper_objective": "(최상위) 공비서는 뷰티서비스를 제공하는 원장님과 샵을 이용하는 손님의 불편을 IT 기술로 해결하여, 원장님들의 비스니스 성장을 가속화한다. 이를 위해서 IT기술을 고도화하여 서비스 사용성을 높여간다.",
+        "description": "고객에게 무엇을 제공할지 고객이 무엇을 원하는지도 표현되지 않았다",
+        "score": "1",
+    },
+]
+
+objEV_value_examples_2 = [
+    {
+        "guideline": "확보된 데이터는 어떻게 PC방 이용자들에게 더 나은 서비스를 제공하는 데 활용될 수 있을까요? (예: 게임 선호도 데이터를 기반으로 PC방 이용자들에게 맞춤형 게임 추천 및 할인 정보를 제공하여 만족도를 높일 수 있습니다.), 해당 데이터 수집 방식은 PC방 이용자들의 데이터 활용에 대한 우려를 어떻게 해소하고, 데이터 보안 및 개인정보 보호를 어떻게 확보할 수 있을까요? (예: 익명화 처리 및 개인정보 보호 정책 명시를 통해 이용자들의 데이터 활용에 대한 불안감을 해소하고, 안전한 데이터 수집 환경을 구축할 수 있습니다.), 데이터 분석 결과는 PC방 이용자들에게 어떤 유용한 정보를 제공하고, 어떤 문제 해결에 도움을 줄 수 있을까요? (예: PC방 이용 패턴 분석 결과를 토대로, 이용자들에게 적합한 PC방 추천 및 할인 정보를 제공하여 이용자 편의성을 높일 수 있습니다.)",
+        "input_sentence": "오거나이저 기능 고도화 및 운영 지원을 통해 오거나이저를 만족시킨다",
+        "upper_objective": "PC방 Lvup.gg 샘플 데이터 확보",
+        "description": "오거나이저 기능 고도화를 가치로 하고 있으나, 기능 고도화가 구체적으로 무엇인지에 대해서는 모호하다",
+        "score": "2",
+    }
+]
+
+objEV_value_examples_3 = [
+    {
+        "guideline": "스마트 러닝 사업의 핵심 경쟁력은 어떻게 고객에게 새로운 학습 경험과 가치를 제공하여 만족도를 높일 수 있을까요? (예: AI 기반 개인 맞춤형 학습 시스템은 학습자의 수준과 목표에 맞춰 개인화된 학습 콘텐츠와 피드백을 제공하여, 효율적이고 흥미로운 학습 경험을 선사할 수 있습니다.), 온라인 교육 서비스의 개선은 고객에게 어떤 편리성과 효율성을 제공하고, 학습 만족도를 높일 수 있을까요? (예: 모바일 친화적인 학습 환경 구축은 언제 어디서든 학습 콘텐츠에 접근하고 학습 진행 상황을 확인할 수 있도록 편리성을 제공하고, 다양한 학습 자료와 커뮤니티 기능을 활용하여 학습 효과를 극대화할 수 있습니다.), 블렌디드 러닝 서비스는 고객에게 어떤 새로운 학습 경험을 제공하고, 기존 온라인 교육 서비스와 차별화된 가치를 제공할 수 있을까요? (예: 오프라인 강의와 온라인 학습 콘텐츠를 연계하여 실시간 질의응답, 그룹 스터디 등 다양한 학습 활동을 제공하고, 학습자 간의 교류와 협력을 증진시켜 학습 효과를 극대화할 수 있습니다.)",
+        "input_sentence": "에듀테크 기업으로 변모한다.",
+        "upper_objective": "(최상위) 국내 온라인 교육시장을 이끌며 사업시작 일 년 만에 업계 선두로 올라서고 유지해 왔다. 코로나 이후 빠르게 변하고 있는 고객 학습방식과 시장 변화에 따라, 온라인 교육 서비스로 발전시키고, 온 오프라인을 아우르는 블렌디드 러닝 서비스를 넘어 스마트 러닝 사업에 힘을 쏟고 있다.",
+        "description": "에듀테크로의 변모는 학습방식이 달라진 고객들에게 주는 가치라고 볼 수 있다",
+        "score": "3",
+    }
+]
+
+# ----------------------------------------------------------------------------------------------------
+#objRVprompt.py
+
+from langchain.prompts import PromptTemplate
+
+obj_background_template = """
+company: {company}
+field: {field}
+team: {team}
+"""
+
+objRV_task_description = """
+당신은 obj(Objectives and Key Results) 평가 전문가입니다. 주어진 Objective 문장을 다음 기준에 따른 분석을 통해 개선하세요.
+
+al 측정가능성, 그리고 결과 지향성을 모두 개선하여 완성된 하나의 문장을 제시하세요.
+연관성 개선. 상위 목표와의 연결고리 강화, 직접적인 기여도 명확화, 핵심 가치 반영
+측정 가능성 개선. 구체적인 수치 목표 설정, 명확한 측정 지표 추가, 시간 제약 명시
+결과 지향성 개선. 활동 중심 문구를 결과 중심으로 변환, 최종 영향이나 가치를 명확히 표현, 달성 기준 구체화
+
+위의 단계별 사고 과정을 거친 후, 종합적으로 판단하여 다음 두 가지 결과를 제시하세요
+
+  1. "description": "구체적인 수정 이유 (위의 사고 과정을 반영하여 작성)",
+  2. "revision": 최종 수정 문장
+
+{prefix_guideline}
+{prefix_example}
+"""
+
+# "guideline" : "우리맛 연구팀의 레시피 개발을 통해 고객이 요리에 대한 접근성을 얼마나 높였는가? 우리맛 연구팀의 콘텐츠를 통해 고객의 요리에 대한 흥미와 참여를 얼마나 높였는가? 우리맛 연구팀의 노력을 통해 고객이 하루에 한 끼는 요리를 하고 싶게 만드는 데 얼마나 성공했는가?",
+
+objRV_examples = [
+    {
+        "guideline": "추가 필요",
+        "input_sentence": "일상 요리들의 조리 과정을 50% 줄일 수 있는 제품+요리법을 연구, 개발한다.",
+        "upper_objective": "고객이 하루에 한 끼는 요리를 하고 싶게 한다.",
+        "EV_description": "조리를 쉽고 빠르게 할 수 있는 것은 고객이 하루에 한끼 정도는 요리를 할 수 있게 만드는 요소입니다. 현재대비 50% 정도로 요리 과정이 간소화되어야 하는데, 현재가 어느정도인지 나타나지 않아서 50%로 줄어드는 것을 측정하기 어렵다. 조리과정 50% 감소라는 것은 결과이나, 조리과정이 현재 어느정도에서 얼마나 달라지는지로 표현되어야 더 좋은 결과다",
+        "revision": "일상 요리 조리 평균 시간을 50분에서 25분으로 줄인다.",
+        "description": "구체적인 판단의 근거를 제시함",
+    }
+]
+
+objRV_example_prompt = PromptTemplate(
+    input_variables=[
+        "guideline",
+        "input_sentence",
+        "upper_objective",
+        "EV_description",
+        "description",
+        "revision",
+    ],
+    template="""
+  <예시 입력>
+  "guideline" : {guideline}
+  "input_sentence": {input_sentence}
+  "upper_objective": {upper_objective}
+  "EV_description": {EV_description}
+  
+  <예시 출력>
+  
+  "revision" : {revision}
+  "description" : {description}
+  
+  """,
+)
+
+objRV_suffix = """
+<실제 입력>
+"guideline": {guideline}
+"input_sentence": {input_sentence}
+"upper_objective": {upper_objective}
+"EV_description": {EV_description}
+
+<실제 출력>
+
+"description":
+"revision":
+
+
+출력 형식은 key가 description과 revision 2개인 json 형식입니다. json이라는 문구나 백틱 같은 특수문자는 사용하지 마십시오.
+"""
+
+objRV_examples_1 = [
+    {
+        "guideline": "추가 필요",
+        "input_sentence": "일상 요리들의 조리 과정을 50% 줄일 수 있는 제품+요리법을 연구, 개발한다.",
+        "upper_objective": "고객이 하루에 한 끼는 요리를 하고 싶게 한다.",
+        "EV_description": "조리를 쉽고 빠르게 할 수 있는 것은 고객이 하루에 한끼 정도는 요리를 할 수 있게 만드는 요소입니다.",
+        "description": "추가 필요",
+        "revision": "추가 필요",
+    }
+]
+
+objRV_examples_2 = [
+    {
+        "guideline": "추가 필요",
+        "input_sentence": "일상 요리들의 조리 과정을 50% 줄일 수 있는 제품+요리법을 연구, 개발한다.",
+        "upper_objective": "고객이 하루에 한 끼는 요리를 하고 싶게 한다.",
+        "EV_description": "조리를 쉽고 빠르게 할 수 있는 것은 고객이 하루에 한끼 정도는 요리를 할 수 있게 만드는 요소입니다.",
+        "description": "추가 필요",
+        "revision": "추가 필요",
+    }
+]
+
+objRV_examples_3 = [
+    {
+        "guideline": "추가 필요",
+        "input_sentence": "일상 요리들의 조리 과정을 50% 줄일 수 있는 제품+요리법을 연구, 개발한다.",
+        "upper_objective": "고객이 하루에 한 끼는 요리를 하고 싶게 한다.",
+        "EV_description": "조리를 쉽고 빠르게 할 수 있는 것은 고객이 하루에 한끼 정도는 요리를 할 수 있게 만드는 요소입니다.",
+        "description": "추가 필요",
+        "revision": "추가 필요",
+    }
+]
+
+# ----------------------------------------------------------------------------------------------------
+#parse.py
+
+# JSON 문자열을 딕셔너리로 파싱
+import json
+import time
+import re
+
+from ai.llm_select import llm
+
+EV_error = {"description": None, "score": None}
+
+RV_error = {"descritpion": None, "revision": None}
+
+
+# 키와 값의 타입을 검증하는 함수
+def EV_validate(data):
+    required_keys = {"description": str, "score": int}
+
+    # 각 키를 검사
+    for key, expected_type in required_keys.items():
+        if key not in data or not isinstance(
+            data[key], expected_type
+        ):  # key와 value type 체크
+            return False
+
+    return True
+
+
+def EV_parse_data(raw_string):
+    # 일단 파싱 및 테스트 시도
+    try:
+        data = json.loads(raw_string)
+        if EV_validate(data):
+            return data  # 올바른 상황
+        else:
+            return EV_error  # json 형식이지만 key, value 등에서 오류가 있는 상황
+    # LLM 사용해서 파싱
+    except json.JSONDecodeError:
+        # LLM을 통해 올바른 JSON 형식으로 수정 요청
+        #         1. 출력은 반드시 중괄호 {}로 시작하고 끝나야 합니다. 2. key는 description, score 2개이며 각 타입은 str, int 입니다. 3. 모든 키와 값은 큰따옴표(")로 감싸야 합니다. score의 value인 int는 제외합니다. 4. 출력 시 모든 특수문자를 제거하십시오. 5. JSON 포맷만 반환하십시오. (추가 설명 금지)
+        prompt = """다음 입력을 JSON 파싱이 가능한 형식으로 변환하십시오. 모든 str type 키와 값은 큰따옴표(")로 감싸야 합니다. 특수문자를 제거하십시오."""
+        res = llm.invoke(raw_string + prompt).content
+
+        match = re.search(r"\{.*\}", res, re.DOTALL)
+        if match != None:
+            res = match.group(0)
+
+        try:  # 파싱 시도
+            data = json.loads(res)
+            if EV_validate(data):  # key, value가 유효함
+                return data
+            else:  # 유효하지 않으면 EV 에러 값 리턴
+                return EV_error
+
+        except json.JSONDecodeError:  # 파싱 실패
+            return EV_error
+
+
+def RV_validate(data):
+    required_keys = {"description": str, "revision": str}
+
+    # 각 키를 검사
+    for key, expected_type in required_keys.items():
+        if key not in data:  # key 체크
+            return False
+        if not isinstance(data[key], expected_type):  # value의 type 체크
+            return False
+
+    return True
+
+
+def RV_parse_data(raw_string):
+    # 일단 파싱 및 테스트 시도
+    try:
+        data = json.loads(raw_string)
+        if RV_validate(data):
+            return data  # 파싱이 되면 그대로 리턴
+        else:
+            return RV_error
+    # LLM 사용해서 파싱
+    except json.JSONDecodeError:
+        # LLM을 통해 올바른 JSON 형식으로 수정 요청
+        #         1. 출력은 반드시 중괄호 {}로 시작하고 끝나야 합니다. 2. key는 description, revision 2개이며 각 타입은 str, int 입니다. 3. 모든 키와 값은 큰따옴표(")로 감싸야 합니다. score의 value인 int는 제외합니다. 4. 출력 시 모든 특수문자를 제거하십시오. 5. JSON 포맷만 반환하십시오. (추가 설명 금지)
+        prompt = """다음 입력을 JSON 파싱이 가능한 형식으로 변환하십시오. 모든 str type 키와 값은 큰따옴표(")로 감싸야 합니다. 특수문자를 제거하십시오."""
+
+        res = llm.invoke(raw_string + prompt).content
+
+        match = re.search(r"\{.*\}", res, re.DOTALL)
+        res = match.group(0)
+
+        try:  # 파싱 시도
+            data = json.loads(res)
+            if RV_validate(data):  # key, value가 유효함
+                return data
+            else:  # 유효하지 않으면 EV 에러 값 리턴
+                return RV_error
+
+        except json.JSONDecodeError:  # 파싱 실패
+            return RV_error
+        
+# ----------------------------------------------------------------------------------------------------
+#parse.py
+
+import time
+from ai.parse import EV_parse_data, EV_error
+from ai.llm_select import llm
+
+
+# input: score 3개, des 3개
+# output: 과반수 score, 병합된 des
+def whowins(
+    des1,
+    des2,
+    des3,
+    score1,
+    score2,
+    score3,
+):
+    # 입력값 리스트
+    dess = [des1, des2, des3]
+    scores = [score1, score2, score3]
+
+    # None이 아닌 값 필터링
+    valid_data = [
+        (score, des)
+        for score, des in zip(scores, dess)
+        if score is not None and des is not None
+    ]
+    valid_count = len(valid_data)
+
+    # None 처리에 따른 분기
+    if valid_count == 3:
+        # None이 없을 때 기존 로직
+        scores, dess = zip(*valid_data)
+        unique_scores = set(scores)
+        score_des_dict = {}
+        for score, des in zip(scores, dess):
+            if score in score_des_dict:
+                score_des_dict[score].append(des)
+            else:
+                score_des_dict[score] = [des]
+
+        if len(unique_scores) == 1:
+            win_score = scores[0]
+            win_des = llm.invoke(
+                "세 문장을 조합해서 재구성해줘: " + ", ".join(score_des_dict[win_score])
+            ).content
+        elif len(unique_scores) == 2:
+            for score in unique_scores:
+                if scores.count(score) == 2:
+                    win_score = score
+                    win_des = llm.invoke(
+                        "두 문장을 조합해서 재구성해줘: "
+                        + ", ".join(score_des_dict[win_score])
+                    ).content
+                    break
+        else:
+            win_score = sorted(scores)[1]
+            win_des = score_des_dict[win_score][0]
+
+    elif valid_count == 2:
+        # None이 1개일 때 점수 평균 계산
+        scores, dess = zip(*valid_data)
+        win_score = sum(scores) // 2  # 평균 (정수로 계산)
+        win_des = llm.invoke(
+            "두 문장을 조합해서 재구성해줘: " + ", ".join(dess)
+        ).content
+
+    elif valid_count == 1:
+        # None이 2개일 때 나머지 값 반환
+        win_score, win_des = valid_data[0]
+
+    else:
+        # None이 3개일 때 기본 오류 값 반환
+        return EV_error
+
+    # JSON 포맷 생성
+    raw_string = f"""
+        {{
+            "description": "{win_des}",
+            "score": {win_score}
+        }}
+        """
+
+    res = EV_parse_data(raw_string)
+    return res
+
+# ----------------------------------------------------------------------------------------------------
+#selfC.py
+
+import time
+from ai.parse import EV_parse_data, EV_error
+from ai.llm_select import llm
+
+
+# input: score 3개, des 3개
+# output: 과반수 score, 병합된 des
+def whowins(
+    des1,
+    des2,
+    des3,
+    score1,
+    score2,
+    score3,
+):
+    # 입력값 리스트
+    dess = [des1, des2, des3]
+    scores = [score1, score2, score3]
+
+    # None이 아닌 값 필터링
+    valid_data = [
+        (score, des)
+        for score, des in zip(scores, dess)
+        if score is not None and des is not None
+    ]
+    valid_count = len(valid_data)
+
+    # None 처리에 따른 분기
+    if valid_count == 3:
+        # None이 없을 때 기존 로직
+        scores, dess = zip(*valid_data)
+        unique_scores = set(scores)
+        score_des_dict = {}
+        for score, des in zip(scores, dess):
+            if score in score_des_dict:
+                score_des_dict[score].append(des)
+            else:
+                score_des_dict[score] = [des]
+
+        if len(unique_scores) == 1:
+            win_score = scores[0]
+            win_des = llm.invoke(
+                "세 문장을 조합해서 재구성해줘: " + ", ".join(score_des_dict[win_score])
+            ).content
+        elif len(unique_scores) == 2:
+            for score in unique_scores:
+                if scores.count(score) == 2:
+                    win_score = score
+                    win_des = llm.invoke(
+                        "두 문장을 조합해서 재구성해줘: "
+                        + ", ".join(score_des_dict[win_score])
+                    ).content
+                    break
+        else:
+            win_score = sorted(scores)[1]
+            win_des = score_des_dict[win_score][0]
+
+    elif valid_count == 2:
+        # None이 1개일 때 점수 평균 계산
+        scores, dess = zip(*valid_data)
+        win_score = sum(scores) // 2  # 평균 (정수로 계산)
+        win_des = llm.invoke(
+            "두 문장을 조합해서 재구성해줘: " + ", ".join(dess)
+        ).content
+
+    elif valid_count == 1:
+        # None이 2개일 때 나머지 값 반환
+        win_score, win_des = valid_data[0]
+
+    else:
+        # None이 3개일 때 기본 오류 값 반환
+        return EV_error
+
+    # JSON 포맷 생성
+    raw_string = f"""
+        {{
+            "description": "{win_des}",
+            "score": {win_score}
+        }}
+        """
+
+    res = EV_parse_data(raw_string)
+    return res
+
+#----------------------------------------------------------------------------------------------------
+#tempCodeRunnerFile.py
+bye
