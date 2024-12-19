@@ -29,7 +29,7 @@ class Okr(Base):
     guideline = Column(String)
     revision = Column(String)
     revision_description = Column(String)
-    created_at = Column(DateTime,nullable=False, default=datetime.utcnow)
+    created_at = Column(DateTime,nullable=False,server_default=func.now(), onupdate=func.now())
     updated_at = Column(DateTime, nullable=False, server_default=func.now(), onupdate=func.now())
     company_id = Column(Integer, ForeignKey("company.id", ondelete="CASCADE"))
 
