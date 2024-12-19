@@ -157,9 +157,9 @@ async def get_okr_join_company_prediction(db: AsyncSession, offset, page_size, c
         query = query.options(joinedload(Okr.predictions))
         
         if new_sorting == True:
-            query = query.order_by(Okr.created_at.desc()).offset(offset).limit(page_size)
+            query = query.order_by(Okr.updated_at.desc()).offset(offset).limit(page_size)
         else:
-            query = query.order_by(Okr.created_at.asc()).offset(offset).limit(page_size)
+            query = query.order_by(Okr.updated_at.asc()).offset(offset).limit(page_size)
 
         query = query.where(
             or_(
@@ -228,9 +228,9 @@ async def get_okr_join_company(db: AsyncSession, offset, page_size, company_name
             logger.info(f"필터 조건 추가: company_field={company_field}")
 
         if new_sorting == True:
-            query = query.order_by(Okr.created_at.desc()).offset(offset).limit(page_size)
+            query = query.order_by(Okr.updated_at.desc()).offset(offset).limit(page_size)
         else:
-            query = query.order_by(Okr.created_at.asc()).offset(offset).limit(page_size)
+            query = query.order_by(Okr.updated_at.asc()).offset(offset).limit(page_size)
 
         logger.debug(f"쿼리 생성 완료: {query}")
         result = await db.execute(query)
