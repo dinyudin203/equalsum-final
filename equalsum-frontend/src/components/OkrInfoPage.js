@@ -83,16 +83,7 @@ const OkrInfoPage = ({ setActiveTab, setSelectedCompanies, onExcelImport }) => {
         }}>
       <h1>OKR 기업정보</h1>
       <button 
-      onClick={handleOpenPopup}
-      style={{
-        padding: '10px 15px',
-        backgroundColor: '#007bff',
-        color: 'white',
-        border: 'none',
-        borderRadius: '5px',
-        cursor: 'pointer',
-      }}
-      >
+      onClick={handleOpenPopup}>
         Import
       </button>
       </div>
