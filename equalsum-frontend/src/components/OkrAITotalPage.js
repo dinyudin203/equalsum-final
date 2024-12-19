@@ -38,12 +38,12 @@ const OkrAITotalPage = () => {
     } finally {
       setIsLoading(false);
     }
-  };
+  }
 
   // 필터 및 페이지 상태에 따라 데이터 가져오기
   useEffect(() => {
-    fetchAITotalData(currentPage, localSelectedCompany, localSelectedField, sorting);
-  }, [currentPage, localSelectedCompany, localSelectedField, sorting]);
+    fetchAITotalData(currentPage, localSelectedCompany, localSelectedField, sorting, pageSize);
+  }, [currentPage, localSelectedCompany, localSelectedField, sorting, pageSize]);
 
   // 필터링 동작
   const handleCompanyChange = (value) => {
@@ -138,7 +138,7 @@ const OkrAITotalPage = () => {
 
   const startIndex = (currentPage - 1) * pageSize; // 현재 페이지의 시작 인덱스
   const endIndex = startIndex + pageSize; // 현재 페이지의 끝 인덱스
-  const currentPageData = aiTotalData.slice(startIndex, endIndex); // 페이지 데이터 슬라이싱
+  const currentPageData = aiTotalData; // 페이지 데이터 슬라이싱
 
   const openModal = (title, content) => {
     setModalTitle(title);
