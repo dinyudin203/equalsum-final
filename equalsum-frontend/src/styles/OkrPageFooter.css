@@ -1,0 +1,13 @@
+.footer {
+    position: absolute; /* 페이지 하단 고정 */
+    bottom: 0;
+    left: 0;
+    width: 100%; /* 화면 전체 너비 */
+    background-color: black;
+    color: white;
+    text-align: center;
+    padding: 10px 0;
+    font-family: 'Arial', sans-serif;
+    font-size: 0.9rem;
+  }
+  

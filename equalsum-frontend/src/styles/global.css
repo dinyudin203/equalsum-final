@@ -1,0 +1,95 @@
+@font-face {
+  font-family: 'Pretendard-Regular';
+  src: url('https://fastly.jsdelivr.net/gh/Project-Noonnu/noonfonts_2107@1.1/Pretendard-Regular.woff') format('woff');
+  font-weight: 400;
+  font-style: normal;
+}
+
+/*html{
+  font-family: 'Pretendard-Regular';
+}*/
+
+.page-container {
+  padding: 10px 40px; 
+  margin: 0 auto; /* 중앙 정렬 */
+  background-color: white; /* 콘텐츠 배경색 */
+}
+
+h1 {
+    font-size: 2rem;
+    font-weight: bold;
+    color: #333;
+    text-align: left;
+  }
+  
+  label {
+    font-size: 1rem;
+    color: #333;
+    margin-right: 2px;
+  }
+  
+  select {
+    font-size: 1rem;
+    padding: 5px;
+    margin-right: 20px;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    background-color: #fff;
+    color: #333;
+    cursor: pointer;
+  }
+  
+  table {
+    width: 100%;
+    margin: 20px auto;
+    border-collapse: collapse;
+    font-family: 'Arial', sans-serif;
+    font-size: 1rem;
+  }
+  
+  table th {
+    background-color: #007bff;
+    color: #fff;
+    font-weight: bold;
+    padding: 10px;
+    text-align: left;
+    border: 1px solid #ddd;
+  }
+  
+  table td {
+    padding: 10px;
+    border: 1px solid #ddd;
+    text-align: left;
+    color: #333;
+    background-color: white;
+  }  
+  
+  table tr:nth-child(even) {
+    background-color: #f9f9f9;
+  }
+  
+  button {
+    background-color: #007bff;
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    font-size: 1rem;
+    font-family: 'Arial', sans-serif;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+  }
+  
+  button:disabled {
+    background-color: #ccc;
+    color: white;
+    cursor: not-allowed;
+  }
+  
+
+  .apply-button-container {
+    display: flex;
+    justify-content: flex-end; 
+    margin: 1em 1.5em 1em 1em;
+  }
+  
