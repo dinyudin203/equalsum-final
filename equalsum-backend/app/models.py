@@ -30,6 +30,7 @@ class Okr(Base):
     revision = Column(String)
     revision_description = Column(String)
     created_at = Column(DateTime,nullable=False, default=datetime.utcnow)
+    updated_at = Column(DateTime, nullable=False, server_default=func.now(), onupdate=func.now())
     company_id = Column(Integer, ForeignKey("company.id", ondelete="CASCADE"))
 
     company = relationship("Company", back_populates="okrs")
@@ -43,7 +44,6 @@ class Prediction(Base):
     score = Column(Integer)
     description = Column(String)
     okr_id = Column(Integer, ForeignKey("okr.id", ondelete="CASCADE"))
-    updated_at = Column(DateTime, nullable=False, server_default=func.now(), onupdate=func.now())
     
     okr = relationship("Okr", back_populates="predictions")
     

@@ -30,5 +30,6 @@ ipython set.pyd
 
 ## Running the app
 ```bash
+chmod +x ./run.sh
 ./run.sh
 ```

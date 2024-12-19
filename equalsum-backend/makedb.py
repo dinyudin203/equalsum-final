@@ -54,6 +54,7 @@ cur.execute("""create table okr (
     revision_description    varchar(2047),
     company_id  int,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 	foreign key (company_id) references company(id));""")
 conn.commit()
 
@@ -64,7 +65,6 @@ cur.execute("""create table prediction (
     score   int,
     description varchar(2047),
     okr_id  int,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     foreign key (okr_id) references okr(id),
     constraint unique_okr_type UNIQUE (okr_id, type));""")
 
@@ -90,7 +90,7 @@ conn.commit()
 
 cur.execute("""
     CREATE TRIGGER trigger_set_updated_at
-    BEFORE UPDATE ON prediction
+    BEFORE UPDATE ON okr
     FOR EACH ROW
     EXECUTE FUNCTION set_updated_at();
 """)

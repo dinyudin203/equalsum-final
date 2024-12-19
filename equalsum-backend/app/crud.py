@@ -185,6 +185,7 @@ async def get_okr_join_company_prediction(db: AsyncSession, offset, page_size, c
                 "input_sentence": okr.input_sentence,
                 "upper_objective": okr.upper_objective,
                 "created_at": okr.created_at,
+                "updated_at": okr.updated_at,
                 "company_name": company.name,
                 "company_field": company.field,
                 "team": okr.team,
@@ -247,6 +248,7 @@ async def get_okr_join_company(db: AsyncSession, offset, page_size, company_name
                 "input_sentence": okr.input_sentence,
                 "upper_objective": okr.upper_objective,
                 "created_at": okr.created_at,
+                "updated_at": okr.updated_at,
                 "company_name": company.name,
                 "company_field": company.field,
                 "team": okr.team
@@ -293,7 +295,6 @@ async def get_ai_okr_result(db: AsyncSession, okr_id):
                     "prediction_score": prediction.score,
                     "prediction_description": prediction.description,
                     "prediction_type": prediction.type,
-                    "prediction_date": prediction.updated_at.isoformat()
                 })
 
         data = {
@@ -304,6 +305,8 @@ async def get_ai_okr_result(db: AsyncSession, okr_id):
             "revision": okr.revision,
             "revision_description": okr.revision_description,
             "predictions": predict_result,
+            "created_at": okr.created_at,
+            "updated_at": okr.updated_at,
             "team": okr.team
         }
         logger.info(f"OKR 결과 데이터 생성 완료: {data}")
