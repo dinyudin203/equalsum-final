@@ -1,5 +1,5 @@
 from celery import Celery
-from config import CELERY_BROKER_URL, CELERY_RESULT_BACKEND
+from config import CELERY_BROKER_URL, CELERY_RESULT_BACKEND, INPUT_WITH_GUIDELINE
 import time
 from sqlalchemy.ext.asyncio import AsyncSession
 from crud import create_eval_okr, findById, update_revision_okr, update_guideline_okr, update_description_company, update_guideline_okr
@@ -30,7 +30,7 @@ def execute_ai_okr(okr_info):
                     await update_guideline_okr(okr_info['okr_id'], guideline["Guideline"])
 
                 for idx, eval_type in enumerate(objective_types):
-                    if guideline["Guideline"] is None:
+                    if guideline["Guideline"] is None or INPUT_WITH_GUIDELINE == False:
                         result = objEV(okr_info["input_sentence"], okr_info["upper_objective"], "", "", False, False, idx)
                     else:
                         result = objEV(okr_info["input_sentence"], okr_info["upper_objective"], guideline["Guideline"], "", True, False, idx)
@@ -45,7 +45,7 @@ def execute_ai_okr(okr_info):
                         await create_eval_okr(okr_info["okr_id"], eval_type, -1, "Error: 오류 발생.")
                         logger.info(f"{eval_type} 평가 오류 발생")
                 
-                if guideline is None:
+                if guideline is None or INPUT_WITH_GUIDELINE == False:
                     result = objRV(okr_info["input_sentence"], okr_info["upper_objective"], "", "", EV_description, False, False)
                 else:
                     result = objRV(okr_info["input_sentence"], okr_info["upper_objective"], guideline, "", EV_description, True, False)
@@ -58,7 +58,7 @@ def execute_ai_okr(okr_info):
                     await update_guideline_okr(okr_info['okr_id'], guideline["Guideline"])
                 
                 for idx, eval_type in enumerate(keyresult_types):
-                    if guideline["Guideline"] is None:
+                    if guideline["Guideline"] is None or INPUT_WITH_GUIDELINE == False:
                         result = krEV_selfC(okr_info["input_sentence"], okr_info["upper_objective"], "", "", False, False, idx)
                     else:
                         result = krEV_selfC(okr_info["input_sentence"], okr_info["upper_objective"], guideline["Guideline"], "", True, False, idx)
@@ -72,7 +72,7 @@ def execute_ai_okr(okr_info):
                         await create_eval_okr(okr_info["okr_id"], eval_type, -1, "Error: 오류 발생.")
                         logger.info(f"{eval_type} 평가 오류 발생")
                 
-                if guideline is None:
+                if guideline is None or INPUT_WITH_GUIDELINE == False:
                     result = krRV(okr_info["input_sentence"], okr_info["upper_objective"], "", "", EV_description, False, False)
                 else:
                     result = krRV(okr_info["input_sentence"], okr_info["upper_objective"], guideline, "", EV_description, True, False)
