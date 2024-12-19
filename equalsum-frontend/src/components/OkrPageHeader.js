@@ -16,7 +16,7 @@ const OkrPageHeader = ({ activeTab, setActiveTab, onExcelImport }) => {
   return (
     <header className="header-container">
       {/* 첫 번째 줄: 제목 */}
-      <h1 className="header-title">Okr AI consultant</h1>
+      <h1 className="header-title">OKR AI consultant</h1>
 
       {/* 두 번째 줄: 네비게이션 + Import 버튼 */}
       <div className="nav-section">

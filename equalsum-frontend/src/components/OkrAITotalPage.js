@@ -1,9 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { getTotalAIData } from '../api/api';
 import * as XLSX from 'xlsx';
-
-
-
+import '../styles/OkrAITotalPage.css';
 const OkrAITotalPage = () => {  
 
   const [localSelectedCompany, setLocalSelectedCompany] = useState(''); // 기업 필터
@@ -14,17 +12,22 @@ const OkrAITotalPage = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [aiTotalData, setAITotalData] = useState([]);
   const [sorting, setSorting] = useState('true'); // 정렬 필터
+  const [modalContent, setModalContent] = useState(''); // 모달 내용
+  const [isModalOpen, setIsModalOpen] = useState(false); // 모달 열림 상태
+  const [modalTitle, setModalTitle] = useState(''); // 모달 제목
   const pageSize = 4;
 
   const currentDate = new Date().toISOString().slice(0, 10).replace(/-/g, '');
 
-
-
+  function FormattedText({ text }) {
+    return <div style={{ whiteSpace: 'pre-line', lineHeight: '1.5' }}>{text}</div>;
+  }
+  
   // API 데이터 가져오기
-  const fetchAITotalData = async (page = 1, company_name = '', field = '') => {
+  const fetchAITotalData = async (page = 1, company_name = '', field = '', sort = 'true') => {
     try {
       setIsLoading(true);
-      const response = await getTotalAIData(page, company_name, field, sorting);
+      const response = await getTotalAIData(page, company_name, field, sort);
       const filteredData = response.data.data || []; // 데이터가 없는 경우 빈 배열 반환
       setAITotalData(filteredData);
       setTotalPages(Math.ceil(filteredData.length / pageSize)); // 총 페이지 계산
@@ -39,7 +42,7 @@ const OkrAITotalPage = () => {
 
   // 필터 및 페이지 상태에 따라 데이터 가져오기
   useEffect(() => {
-    fetchAITotalData(currentPage, localSelectedCompany, localSelectedField);
+    fetchAITotalData(currentPage, localSelectedCompany, localSelectedField, sorting);
   }, [currentPage, localSelectedCompany, localSelectedField, sorting]);
 
   // 필터링 동작
@@ -136,7 +139,18 @@ const OkrAITotalPage = () => {
   const startIndex = (currentPage - 1) * pageSize; // 현재 페이지의 시작 인덱스
   const endIndex = startIndex + pageSize; // 현재 페이지의 끝 인덱스
   const currentPageData = aiTotalData.slice(startIndex, endIndex); // 페이지 데이터 슬라이싱
-  
+
+  const openModal = (title, content) => {
+    setModalTitle(title);
+    setModalContent(content);
+    setIsModalOpen(true);
+  };
+
+  const closeModal = () => {
+    setModalTitle('');
+    setModalContent('');
+    setIsModalOpen(false);
+  };
 
   return (
     <div className="page-container">
@@ -145,7 +159,7 @@ const OkrAITotalPage = () => {
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
-          marginBottom: '20px', // Optional spacing below the header
+          marginBottom: '20px',
         }}> 
         <h1>저장된 AI 결과</h1>
         <button
@@ -162,24 +176,55 @@ const OkrAITotalPage = () => {
             Export
         </button>
       </div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <div>
-          <label>기업명: </label>
-          <select
-            onChange={(e) => handleCompanyChange(e.target.value)}
-            value={localSelectedCompany || ''}
-          >
-            <option value="">모든 기업</option>
-            {uniqueCompanies.map((company, index) => (
-              <option key={index} value={company}>
-                {company}
-              </option>
-            ))}
-          </select>
+      <div
+  style={{
+    display: 'flex', // Flexbox 레이아웃 활성화
+    justifyContent: 'space-between', // 양쪽 정렬
+    alignItems: 'center', // 수직 중앙 정렬
+    marginBottom: '10px',
+  }}
+  >
+        <div style={{ display: 'flex', gap: '20px' }}> {/* 왼쪽 정렬된 필터 */}
+          <div>
+            <label>기업명: </label>
+            <select
+              onChange={(e) => handleCompanyChange(e.target.value)}
+              value={localSelectedCompany || ''}
+            >
+              <option value="">모든 기업</option>
+              {uniqueCompanies.map((company, index) => (
+                <option key={index} value={company}>
+                  {company}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label>시간순: </label>
+            <select
+              onChange={(e) => handleSortingChange(e.target.value)}
+              value={sorting}
+            >
+              <option value="true">최신순</option>
+              <option value="false">오래된순</option>
+            </select>
+          </div>
         </div>
-        <button onClick={removeFilters}>필터 초기화</button>
+        <button
+          onClick={removeFilters}
+          style={{
+            backgroundColor: '#007bff',
+            color: 'white',
+            border: 'none',
+            padding: '10px 15px',
+            borderRadius: '5px',
+            cursor: 'pointer',
+          }}
+        >
+          필터 초기화
+        </button>
       </div>
-      <table border="1" style={{ marginTop: '10px' }}>
+      <table border="1" style={{ marginTop: '10px', width: '100%', borderCollapse: 'collapse' }}>
         <thead>
           <tr>
             <th>No.</th>
@@ -190,10 +235,10 @@ const OkrAITotalPage = () => {
             <th>구분(OKR)</th>
             <th>상위/해당목표</th>
             <th>작성 OKR</th>
-            <th>수정 OKR</th>
-            <th>수정 이유</th>
             <th>가이드라인</th>
             <th>평가</th>
+            <th>수정 OKR</th>
+            <th>수정 이유</th>
             <th>선택</th>
           </tr>
         </thead>
@@ -206,13 +251,13 @@ const OkrAITotalPage = () => {
                 <td>{okr.company_name}</td>
                 <td>{okr.company_field}</td>
                 <td>{okr.team || '-'}</td>
-                <td>{okr.is_objective ? 'o' : 'kr'}</td>
+                <td>{okr.is_objective ? 'O' : 'KR'}</td>
                 <td>{okr.upper_objective || '-'}</td>
-                <td style={{ fontSize: '12px' }}>{okr.input_sentence || '-'}</td>
-                <td style={{ fontSize: '12px' }}>{okr.revision || '-'}</td>
-                <td style={{ fontSize: '12px' }}>{okr.revision_description || '-'}</td>
-                <td style={{ fontSize: '12px', whiteSpace: 'pre-wrap' }}>{okr.guideline || '-'}</td>
-                <td style={{ fontSize: '12px' }}>
+                <td>{okr.input_sentence || '-'}</td>
+                <td style={{whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  <button onClick={() => openModal('가이드라인', okr.guideline || '-')}>보기</button>
+                </td>
+                <td>
                   {Array.isArray(okr.predictions) && okr.predictions.length > 0
                     ? okr.predictions.map((prediction, idx) => (
                         <span key={idx}>
@@ -221,6 +266,12 @@ const OkrAITotalPage = () => {
                         </span>
                       ))
                     : '-'}
+                </td>
+                <td style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  <button onClick={() => openModal('수정 OKR', okr.revision || '-')}>보기</button>
+                </td>
+                <td style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  <button onClick={() => openModal('수정 이유', okr.revision_description || '-')}>보기</button>
                 </td>
                 <td>
                   <input
@@ -260,6 +311,18 @@ const OkrAITotalPage = () => {
           다음
         </button>
       </div>
+      {isModalOpen && (
+        <>
+          <div className="modal-backdrop" onClick={closeModal}></div> {/* 배경 */}
+          <div className="modal-container">
+            <h2>{modalTitle}</h2>
+            <div className="modal-content">
+              <p><FormattedText text={modalContent} /></p>
+            </div>
+            <button className="modal-close" onClick={closeModal}>닫기</button>
+          </div>
+        </>
+      )}
     </div>
   );
 };
