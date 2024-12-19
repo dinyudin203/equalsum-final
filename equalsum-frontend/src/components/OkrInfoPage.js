@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { getCompanyData } from '../api/api';
+import ExcelImportPopup from './ExcelImport';
 
-const OkrInfoPage = ({ setActiveTab, setSelectedCompanies }) => {
+const OkrInfoPage = ({ setActiveTab, setSelectedCompanies, onExcelImport }) => {
   const [localSelectedCompanies, setLocalSelectedCompanies] = useState([]);
   const [localSelectedFields, setLocalSelectedFields] = useState([]); // 분야 필터
   const [companyData, setCompanyData] = useState([]); // 전체 데이터
@@ -10,6 +11,15 @@ const OkrInfoPage = ({ setActiveTab, setSelectedCompanies }) => {
   const [isLoading, setIsLoading] = useState(true); // 로딩 상태
   const pageSize = 8;
 
+  const [isPopupVisible, setIsPopupVisible] = useState(false);
+  
+    const handleOpenPopup = () => {
+      setIsPopupVisible(true);
+    };
+  
+    const handleClosePopup = () => {
+      setIsPopupVisible(false);
+    };
   const fetchCompanyData = async (page = 1, company_name = '', field = '', pageSize = 8) => {
     try {
       setIsLoading(true);
@@ -64,8 +74,28 @@ const OkrInfoPage = ({ setActiveTab, setSelectedCompanies }) => {
 
   return (
     <div className="page-container">
+       <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          marginBottom: '20px',
+        }}>
       <h1>OKR 기업정보</h1>
-
+      <button 
+      onClick={handleOpenPopup}
+      style={{
+        padding: '10px 15px',
+        backgroundColor: '#007bff',
+        color: 'white',
+        border: 'none',
+        borderRadius: '5px',
+        cursor: 'pointer',
+      }}
+      >
+        Import
+      </button>
+      </div>
       {isLoading ? (
         <p>데이터를 불러오는 중...</p>
       ) : (
@@ -202,6 +232,11 @@ const OkrInfoPage = ({ setActiveTab, setSelectedCompanies }) => {
           </div>
         </>
       )}
+      <ExcelImportPopup
+        isVisible={isPopupVisible}
+        onClose={handleClosePopup}
+        onExcelImport={onExcelImport}
+      />
     </div>
   );
 };

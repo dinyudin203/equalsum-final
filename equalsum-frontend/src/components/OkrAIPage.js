@@ -147,7 +147,7 @@ const OkrAIPage = ({ aiOkrId = [] }) => {
         baseExportData['연결성_이유'] = data.predictions?.[0]?.prediction_description || 'N/A';
         baseExportData['측정가능성_점수'] = data.predictions?.[1]?.prediction_score || 'N/A';
         baseExportData['측정가능성_이유'] = data.predictions?.[1]?.prediction_description || 'N/A';
-        baseExportData['렬과지향성_점수'] = data.predictions?.[2]?.prediction_score || 'N/A';
+        baseExportData['결과지향성_점수'] = data.predictions?.[2]?.prediction_score || 'N/A';
         baseExportData['결과지향성_이유'] = data.predictions?.[2]?.prediction_description || 'N/A';
       } else if (aiOkrItem?.type === 'Objective') {
         baseExportData['연관성_점수'] = data.predictions?.[0]?.prediction_score || 'N/A';
@@ -158,7 +158,7 @@ const OkrAIPage = ({ aiOkrId = [] }) => {
         baseExportData['연결성_이유'] = 'N/A';
         baseExportData['측정가능성_점수'] = 'N/A';
         baseExportData['측정가능성_이유'] = 'N/A';
-        baseExportData['렬과지향성_점수'] = 'N/A';
+        baseExportData['결과지향성_점수'] = 'N/A';
         baseExportData['결과지향성_이유'] = 'N/A';
       }
 
@@ -261,11 +261,6 @@ const OkrAIPage = ({ aiOkrId = [] }) => {
                   </p>
                   <p>
                     <strong>점수:</strong> {prediction.prediction_score || 'N/A'}
-                  </p>
-                  <p>
-                    <strong>날짜:</strong> {prediction.prediction_date
-                      ? prediction.prediction_date.split('T')[0]
-                      : 'N/A'}
                   </p>
                   <p>
                     <strong>평가 이유:</strong>

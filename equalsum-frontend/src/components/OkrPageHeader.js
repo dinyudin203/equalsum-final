@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import '../styles/OkrPageHeader.css';
 import ExcelImportPopup from './ExcelImport';
 
-const OkrPageHeader = ({ activeTab, setActiveTab, onExcelImport }) => {
+const OkrPageHeader = ({ activeTab, setActiveTab }) => {
   const [isPopupVisible, setIsPopupVisible] = useState(false);
 
   const handleOpenPopup = () => {
@@ -49,20 +49,9 @@ const OkrPageHeader = ({ activeTab, setActiveTab, onExcelImport }) => {
         </div>
 
         {/* 오른쪽: Import 버튼 (조건부 렌더링) */}
-        {activeTab === 'OkrInfoPage' && (
-          <button className="import-button" onClick={handleOpenPopup}>
-            Import
-          </button>
-        )}
+        {activeTab === 'OkrInfoPage'}
 
       </div>
-
-      {/* 팝업 컴포넌트 */}
-      <ExcelImportPopup
-        isVisible={isPopupVisible}
-        onClose={handleClosePopup}
-        onExcelImport={onExcelImport}
-      />
     </header>
   );
 };
