@@ -16,7 +16,7 @@ git clone https://github.com/wintery39/20242R0136COSE48002.git
 
 ## Install dependency
 ```bash
-python set.py
+ipython set.pyd
 ```
 
 ## Install redis
