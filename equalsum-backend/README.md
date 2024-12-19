@@ -19,7 +19,16 @@ git clone https://github.com/wintery39/20242R0136COSE48002.git
 python set.py
 ```
 
+## Install redis
+```bash
+    curl -O https://download.redis.io/redis-stable.tar.gz
+    tar xvzf redis-stable.tar.gz
+    rm redis-stable.tar.gz
+    cd redis-stable
+    make
+```
+
 ## Running the app
 ```bash
-fastapi run main.py
+./run.sh
 ```
