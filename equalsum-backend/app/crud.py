@@ -337,6 +337,7 @@ async def create_eval_okr(okr_id: int, type: str, score: int, description: str):
             )
             async with db.begin():
                 await db.execute(stmt)
+                await db.commit()
             logger.info("Prediction 데이터 삽입 또는 업데이트 완료")
         return True
     except Exception as e:
@@ -356,6 +357,7 @@ async def update_revision_okr(okr_id: int, revision: str, description: str):
 
             async with db.begin():
                 result = await db.execute(stmt)
+                await db.commit()
             logger.info("OKR revision 데이터 업데이트 완료")
         return True
     except Exception as e:
@@ -374,6 +376,7 @@ async def update_guideline_okr(okr_id: int, guideline: str):
 
             async with db.begin():
                 result = await db.execute(stmt)
+                await db.commit()
             logger.info("OKR guideline 데이터 업데이트 완료")
         return True
     except Exception as e:
@@ -392,6 +395,7 @@ async def update_description_company(company_id: int, description: str):
 
             async with db.begin():
                 result = await db.execute(stmt)
+                await db.commit()
             logger.info("Company description 데이터 업데이트 완료")
         return True
     except Exception as e:
