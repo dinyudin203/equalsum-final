@@ -304,7 +304,7 @@ const OkrAIPage = ({ aiOkrId = [] }) => {
           disabled={currentIndex === aiOkrId.length - 1}
           style={{
             padding: '5px 10px',
-            backgroundColor: ( currentIndex === aiOkrId.length - 1 || aiOkrId.length == 0)  ? '#ccc' : '#007bff',
+            backgroundColor: ( currentIndex === aiOkrId.length - 1 || !currentData)  ? '#ccc' : '#007bff',
             color: 'white',
             cursor: currentIndex === aiOkrId.length - 1 ? 'not-allowed' : 'pointer',
           }}
