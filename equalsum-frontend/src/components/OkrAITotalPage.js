@@ -15,7 +15,7 @@ const OkrAITotalPage = () => {
   const [modalContent, setModalContent] = useState(''); // 모달 내용
   const [isModalOpen, setIsModalOpen] = useState(false); // 모달 열림 상태
   const [modalTitle, setModalTitle] = useState(''); // 모달 제목
-  const pageSize = 4;
+  const pageSize = 8;
 
   const currentDate = new Date().toISOString().slice(0, 10).replace(/-/g, '');
 
@@ -24,13 +24,13 @@ const OkrAITotalPage = () => {
   }
   
   // API 데이터 가져오기
-  const fetchAITotalData = async (page = 1, company_name = '', field = '', sort = 'true') => {
+  const fetchAITotalData = async (page = 1, company_name = '', field = '', sort = 'true', page_size = 8) => {
     try {
       setIsLoading(true);
-      const response = await getTotalAIData(page, company_name, field, sort);
+      const response = await getTotalAIData(page, company_name, field, sort, page_size);
       const filteredData = response.data.data || []; // 데이터가 없는 경우 빈 배열 반환
       setAITotalData(filteredData);
-      setTotalPages(Math.ceil(filteredData.length / pageSize)); // 총 페이지 계산
+      setTotalPages(response.data.total_page); // 총 페이지 계산
     } catch (error) {
       console.error('데이터를 가져오는데 실패했습니다:', error);
       setAITotalData([]);
@@ -229,6 +229,7 @@ const OkrAITotalPage = () => {
           <tr>
             <th>No.</th>
             <th>일자</th>
+            <th>AI적용일자</th>
             <th>기업명</th>
             <th>업종</th>
             <th>부서명</th>
@@ -248,6 +249,7 @@ const OkrAITotalPage = () => {
               <tr key={okr.okr_id || startIndex + index}>
                 <td>{startIndex + index + 1}</td>
                 <td>{okr.created_at ? okr.created_at.slice(0, 10) : '-'}</td>
+                <td>{okr.updated_at ? okr.updated_at.slice(0, 10) : '-'}</td>
                 <td>{okr.company_name}</td>
                 <td>{okr.company_field}</td>
                 <td>{okr.team || '-'}</td>
