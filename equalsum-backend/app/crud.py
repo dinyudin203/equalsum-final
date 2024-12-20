@@ -73,7 +73,7 @@ async def upload_dataframe(db: AsyncSession, df):
     for index, row in df.iterrows():
         try:
             if row[["company", "field", "type", "input_sentence", "upper_objective", "team"]].isnull().values.any() or row["type"] not in ["Objective", "Key Result"]:
-                error_li.append(index)
+                error_li.append(index + 1)
                 continue
             query = select(Company).where(
                 Company.name == row['company'],
@@ -105,7 +105,8 @@ async def upload_dataframe(db: AsyncSession, df):
             )
             await db.execute(okr_stmt)
         except Exception as e:
-                logger.error(f"upload_dataframe 에러: {e}, index={index}")
+            error_li.append(index + 1)
+            logger.error(f"upload_dataframe 에러: {e}, index={index}")
 
     await db.commit()
     logger.info(f"upload_dataframe 완료 error 발생 row {error_li}")
