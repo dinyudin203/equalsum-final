@@ -146,6 +146,18 @@ const OkrAITotalPage = () => {
     setIsModalOpen(true);
   };
 
+  const handleSelectAll = () => {
+    const isAllSelected = aiTotalData.every((okr) => selectedRows.includes(okr));
+    if (isAllSelected) {
+      // 모든 항목이 선택된 상태라면 선택 해제
+      setSelectedRows([]);
+    } else {
+      // 모든 항목을 선택
+      setSelectedRows(aiTotalData);
+    }
+  };
+  
+
   const closeModal = () => {
     setModalTitle('');
     setModalContent('');
@@ -210,6 +222,10 @@ const OkrAITotalPage = () => {
             </select>
           </div>
         </div>
+        <div style={{ display: 'flex',justifyContent: 'space-between'}}> {/* 오른쪽 정렬된 필터 */}
+        <button onClick={handleSelectAll} style={{ marginRight: '10px' }}>
+          전체 선택
+        </button>
         <button
           onClick={removeFilters}
           style={{
@@ -223,6 +239,7 @@ const OkrAITotalPage = () => {
         >
           필터 초기화
         </button>
+        </div>
       </div>
       <table border="1" style={{ marginTop: '10px', width: '100%', borderCollapse: 'collapse' }}>
         <thead>
