@@ -69,8 +69,12 @@ async def findCompanyById(db: AsyncSession, id: int):
 async def upload_dataframe(db: AsyncSession, df):
     logger.info(f"upload_dataframe 호출, DataFrame 크기: {df.shape}")
 
+    error_li = []
     for index, row in df.iterrows():
         try:
+            if row[["company", "field", "type", "input_sentence", "upper_objective", "team"]].isnull().values.any() or row["type"] not in ["Objective", "Key Result"]:
+                error_li.append(index)
+                continue
             query = select(Company).where(
                 Company.name == row['company'],
             )
@@ -104,7 +108,11 @@ async def upload_dataframe(db: AsyncSession, df):
                 logger.error(f"upload_dataframe 에러: {e}, index={index}")
 
     await db.commit()
-    logger.info("upload_dataframe 완료")
+    logger.info(f"upload_dataframe 완료 error 발생 row {error_li}")
+    
+    if error_li:
+        return {"error": f"Error rows: {error_li}"}
+    return {"message": "success"}
 
 async def get_companys(db: AsyncSession, offset, company_name, page_size):
     logger.info(f"get_companys 호출: offset={offset}, company_name={company_name}, page_size={page_size}")

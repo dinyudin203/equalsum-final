@@ -156,13 +156,13 @@ async def upload_excel(file: UploadFile = File(...), db: AsyncSession = Depends(
         if actual_keys == expected_keys:
             df = df.replace({np.nan: None})
             logger.info(f"데이터프레임 업로드 시작")
-            _ = await upload_dataframe(db, df)
+            message = await upload_dataframe(db, df)
         else:
             logger.error(f"파일 포맷 오류: actual_keys={actual_keys}, expected_keys={expected_keys}")
             return {"error": "Invalid file format. Please check keys."}
         
-        logger.info("엑셀 업로드 성공")
-        return {"message":"success"}
+        logger.info("엑셀 업로드 완료")
+        return message
         
     else:
         logger.error("파일 확장자 오류: .xlsx 파일이 아님")
