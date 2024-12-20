@@ -192,7 +192,7 @@ const OkrDataPage = ({ setAITaskStatus , setAIOkrId, setActiveTab}) => {
   return (
     <div className="page-container">
       <h1>OKR 데이터 목록</h1>
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-start', marginBottom: '10px' }}>
         {/* 기업 필터 */}
         <div>
           <label>기업명: </label>
@@ -239,7 +239,7 @@ const OkrDataPage = ({ setAITaskStatus , setAIOkrId, setActiveTab}) => {
       </div>
 
       {/* 버튼 */}
-      <div style={{ marginBottom: '10px' }}>
+      <div style={{ marginBottom: '10px', display: 'flex', justifyContent: 'flex-end'}}>
         <button onClick={handleSelectAll} style={{ marginRight: '10px' }}>
           전체 선택
         </button>

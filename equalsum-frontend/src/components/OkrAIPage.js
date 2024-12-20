@@ -9,7 +9,8 @@ const OkrAIPage = ({ aiOkrId = [] }) => {
   const [pendingTasks, setPendingTasks] = useState([]); // Track pending task_ids
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [isPending_start, setIsPending_start] = useState(true);
+  //const [isPending_start, setIsPending_start] = useState(true);
+  const[isPending, setIsPending] = useState(true);
 
   const currentDate = new Date().toISOString().slice(0, 10).replace(/-/g, '');
 
@@ -68,8 +69,7 @@ const OkrAIPage = ({ aiOkrId = [] }) => {
           setCompletedTasks((prev) => [...prev, item.task_id]);
           setPendingTasks((prev) => prev.filter((taskId) => taskId !== item.task_id)); // PENDING에서 제거
           await fetchDataForId(item); // 성공 시 데이터 가져오기
-          if(isPending_start)
-            setIsPending_start(false);
+          setIsPending(false);
         } else if (response_state === 'PENDING') {
           // PENDING 상태를 유지
           setPendingTasks((prev) => {
@@ -81,8 +81,6 @@ const OkrAIPage = ({ aiOkrId = [] }) => {
           });
 
           console.log('isPending 상태 확인:', isPending);
-          if(isPending_start)
-            setIsPending_start(false);
                 
         } else {
           console.warn(`Task ${item.task_id} returned unexpected status: ${response_state}`);
@@ -149,7 +147,7 @@ const OkrAIPage = ({ aiOkrId = [] }) => {
         baseExportData['연결성_이유'] = data.predictions?.[0]?.prediction_description || 'N/A';
         baseExportData['측정가능성_점수'] = data.predictions?.[1]?.prediction_score || 'N/A';
         baseExportData['측정가능성_이유'] = data.predictions?.[1]?.prediction_description || 'N/A';
-        baseExportData['렬과지향성_점수'] = data.predictions?.[2]?.prediction_score || 'N/A';
+        baseExportData['결과지향성_점수'] = data.predictions?.[2]?.prediction_score || 'N/A';
         baseExportData['결과지향성_이유'] = data.predictions?.[2]?.prediction_description || 'N/A';
       } else if (aiOkrItem?.type === 'Objective') {
         baseExportData['연관성_점수'] = data.predictions?.[0]?.prediction_score || 'N/A';
@@ -160,7 +158,7 @@ const OkrAIPage = ({ aiOkrId = [] }) => {
         baseExportData['연결성_이유'] = 'N/A';
         baseExportData['측정가능성_점수'] = 'N/A';
         baseExportData['측정가능성_이유'] = 'N/A';
-        baseExportData['렬과지향성_점수'] = 'N/A';
+        baseExportData['결과지향성_점수'] = 'N/A';
         baseExportData['결과지향성_이유'] = 'N/A';
       }
 
@@ -192,7 +190,7 @@ const OkrAIPage = ({ aiOkrId = [] }) => {
   const currentData = currentDataList.find((data) => data.task_id === currentAiOkr?.task_id);
   // const isPending = pendingTasks.includes(currentAiOkr?.task_id);
   // const isPending = useMemo(() => pendingTasks.includes(currentAiOkr?.task_id), [pendingTasks, currentAiOkr]);
-  const isPending = pendingTasks.includes(currentAiOkr?.task_id);
+  
 
   function FormattedText({ text }) {
     return <div style={{ whiteSpace: 'pre-line', lineHeight: '1.5' }}>{text}</div>;
@@ -225,11 +223,11 @@ const OkrAIPage = ({ aiOkrId = [] }) => {
       {error && <h2 style={{ color: 'red' }}>{error}</h2>}
       { loading ? (
         <h2 style={{ textAlign: 'center', marginTop: '200px', marginBottom: '300px' }}>Loading...</h2>
-        ) : (isPending_start || isPending)  && currentData ? (
+        ) : isPending && currentData ?(
           <h2 style={{ textAlign: 'center', marginTop: '200px' , marginBottom: '300px'}}>
-            Task is still pending. 
+            작업 중입니다.
             <h3></h3>
-            Please wait.
+            잠시만 기다려주세요.
           </h2>
         ) : currentData ? (
         <div style={{ marginTop: '20px', border: '1px solid #ccc', padding: '10px' }}>
@@ -265,11 +263,6 @@ const OkrAIPage = ({ aiOkrId = [] }) => {
                     <strong>점수:</strong> {prediction.prediction_score || 'N/A'}
                   </p>
                   <p>
-                    <strong>날짜:</strong> {prediction.prediction_date
-                      ? prediction.prediction_date.split('T')[0]
-                      : 'N/A'}
-                  </p>
-                  <p>
                     <strong>평가 이유:</strong>
                     <FormattedText text={prediction.prediction_description || 'N/A'} />
                   </p>
@@ -279,7 +272,7 @@ const OkrAIPage = ({ aiOkrId = [] }) => {
           )}
         </div>):(
             <h2 style={{ marginTop: '230px', marginBottom: '300px',textAlign: 'center' }}>
-              No data available.
+              데이터가 존재하지 않습니다.
             </h2>
           )
       }
@@ -306,7 +299,7 @@ const OkrAIPage = ({ aiOkrId = [] }) => {
           disabled={currentIndex === aiOkrId.length - 1}
           style={{
             padding: '5px 10px',
-            backgroundColor: ( currentIndex === aiOkrId.length - 1 || aiOkrId.length == 0)  ? '#ccc' : '#007bff',
+            backgroundColor: ( currentIndex === aiOkrId.length - 1 || !currentData)  ? '#ccc' : '#007bff',
             color: 'white',
             cursor: currentIndex === aiOkrId.length - 1 ? 'not-allowed' : 'pointer',
           }}

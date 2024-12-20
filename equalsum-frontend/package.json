@@ -9,7 +9,7 @@
     "axios": "^1.7.8",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
-    "react-scripts": "5.0.1",
+    "react-scripts": "^5.0.1",
     "web-vitals": "^2.1.4",
     "xlsx": "^0.18.5",
     "xlsx-js-style": "^1.2.0"
@@ -38,5 +38,5 @@
       "last 1 safari version"
     ]
   },
-   "proxy": "http://211.188.61.23:8000"
+  "proxy": "http://211.188.61.23:8000"
 }

@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import '../styles/OkrPageHeader.css';
 import ExcelImportPopup from './ExcelImport';
 
-const OkrPageHeader = ({ activeTab, setActiveTab, onExcelImport }) => {
+const OkrPageHeader = ({ activeTab, setActiveTab }) => {
   const [isPopupVisible, setIsPopupVisible] = useState(false);
 
   const handleOpenPopup = () => {
@@ -16,7 +16,7 @@ const OkrPageHeader = ({ activeTab, setActiveTab, onExcelImport }) => {
   return (
     <header className="header-container">
       {/* 첫 번째 줄: 제목 */}
-      <h1 className="header-title">Okr AI consultant</h1>
+      <h1 className="header-title">OKR AI consultant</h1>
 
       {/* 두 번째 줄: 네비게이션 + Import 버튼 */}
       <div className="nav-section">
@@ -49,20 +49,9 @@ const OkrPageHeader = ({ activeTab, setActiveTab, onExcelImport }) => {
         </div>
 
         {/* 오른쪽: Import 버튼 (조건부 렌더링) */}
-        {activeTab === 'OkrInfoPage' && (
-          <button className="import-button" onClick={handleOpenPopup}>
-            Import
-          </button>
-        )}
+        {activeTab === 'OkrInfoPage'}
 
       </div>
-
-      {/* 팝업 컴포넌트 */}
-      <ExcelImportPopup
-        isVisible={isPopupVisible}
-        onClose={handleClosePopup}
-        onExcelImport={onExcelImport}
-      />
     </header>
   );
 };
