@@ -2,10 +2,12 @@ import google.generativeai as genai
 import re
 import json
 from config import GOOGLE_API_KEY
+from ai.llm_gpt import gpt
 
 # llm model
-genai.configure(api_key=GOOGLE_API_KEY)
-model = genai.GenerativeModel(model_name="gemini-1.5-flash-001")
+#genai.configure(api_key=GOOGLE_API_KEY)
+#model = genai.GenerativeModel(model_name="gemini-1.5-flash-001")
+model = gpt
 
 def text_to_json(text):
     if text:
@@ -60,14 +62,14 @@ def key_result_query(company_name, department_name, objective, context):
 
     return json_response
 
-# company_name='CJ씨푸드'
-# company_type='food'
-# company_type_kor='식품'
-# department_name='우리맛연구팀'
-# objective='간편한 한끼 식사로 균형잡힌 영양을 제공한다'
-# context='곡류, 고기나 생선류, 채소류, 과일류, 유제품류, 유지류 등 총 6가지의 식품으로 짜인 밥상이 균형 잡힌 식단이라고 볼 수 있습니다. 이는 각 식품군이 우리 몸에 필요한 다양한 영양소를 제공하기 때문입니다. 특히 간편한 한 끼 식사를 위해서는 모든 영양소를 고루 섭취하는 균형 잡힌 식단이 중요합니다. 균형 잡힌 식사는 단순히 맛있게 먹는 것을 넘어 건강을 유지하고 질병을 예방하는 데 중요한 역할을 합니다. 따라서 식료품을 선택할 때는 단순히 맛이나 가격뿐만 아니라 영양적인 균형도 고려해야 합니다.'
+company_name='CJ씨푸드'
+company_type='food'
+company_type_kor='식품'
+department_name='우리맛연구팀'
+objective='간편한 한끼 식사로 균형잡힌 영양을 제공한다'
+context='곡류, 고기나 생선류, 채소류, 과일류, 유제품류, 유지류 등 총 6가지의 식품으로 짜인 밥상이 균형 잡힌 식단이라고 볼 수 있습니다. 이는 각 식품군이 우리 몸에 필요한 다양한 영양소를 제공하기 때문입니다. 특히 간편한 한 끼 식사를 위해서는 모든 영양소를 고루 섭취하는 균형 잡힌 식단이 중요합니다. 균형 잡힌 식사는 단순히 맛있게 먹는 것을 넘어 건강을 유지하고 질병을 예방하는 데 중요한 역할을 합니다. 따라서 식료품을 선택할 때는 단순히 맛이나 가격뿐만 아니라 영양적인 균형도 고려해야 합니다.'
 
-# print(key_result_query(company_name, department_name, objective, context))
+print(key_result_query(company_name, department_name, objective, context))
 
 def objective_query(company_name, department_name, upper_objective, context):
     def generate_o_query_prompt(company_name, department_name, upper_objective, context):
