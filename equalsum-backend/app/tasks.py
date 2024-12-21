@@ -7,8 +7,8 @@ from asyncio import get_event_loop
 from ai.kr import krEV_selfC, krRV
 from ai.obj import objEV, objRV
 from logger_config import logger
-from guideline_output_fixed import key_result_query, objective_query
-from rag_finalized import rag
+from guideline_gpt import key_result_query, objective_query
+from rag_gpt import rag
 
 celery_app = Celery("tasks", broker=CELERY_BROKER_URL, backend=CELERY_RESULT_BACKEND)
 

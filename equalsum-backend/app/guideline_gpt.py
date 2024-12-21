@@ -3,8 +3,10 @@ import json
 import os
 from langchain_openai import ChatOpenAI
 from langchain.schema import SystemMessage, HumanMessage
+from config import OPENAI_API_KEY
 
 # 이 위에 키를 os.environ["OPENAI_API_KEY"] ="" 형식으로 불러오셔야합니다.
+os.environ["OPENAI_API_KEY"] = OPENAI_API_KEY
 model = ChatOpenAI(model="gpt-4", temperature=0.5)
 
 def text_to_json(text):
